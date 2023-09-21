@@ -22,7 +22,7 @@ export class GitLab {
     });
   }
 
-  async readFile(path: string, getFullResponse: boolean = false): Promise<object> {
+  async readFile(path: string, getFullResponse: boolean = false): Promise<{[index: string]:any}> {
     const extension = path.split(".").pop();
     const res = await this.api.RepositoryFiles.show(`${this.parameters.username}/${this.parameters.project}`, path, this.parameters.branch);
 
