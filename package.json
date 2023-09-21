@@ -3,10 +3,14 @@
   "version": "1.0.50",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "check": "bun run tsc --noEmit --watch"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@gitbeaker/rest": "^39.15.0",
+    "elysia": "latest",
+    "typescript": "^5.2.2",
+    "yaml": "^2.3.2"
   },
   "devDependencies": {
     "bun-types": "latest"
