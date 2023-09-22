@@ -4,14 +4,17 @@ import { Body } from "./Utils";
 
 const app = new Elysia()
   .onError(({ error }) => {
-    return { error: error.toString() }
+    return { error: error.toString() };
   })
-  .post("/entry/:service/:username/:project/:branch/:property", async ({ params, body }) => {
-    const sm = new Staticman();
-    await sm.process(params, body as Body);
-  })
+  .post(
+    "/entry/:service/:username/:project/:branch/:property",
+    async ({ params, body }) => {
+      const sm = new Staticman();
+      await sm.process(params, body as Body);
+    },
+  )
   .listen(3000);
 
 console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
 );

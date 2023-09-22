@@ -11,8 +11,7 @@ const rsa = new NodeRSA();
 rsa.importKey(Config.get("rsaPrivateKey"), "private");
 
 export default class Staticman {
-  constructor() {
-  }
+  constructor() {}
 
   async process(params: Parameters, body: Body) {
     const gl = new GitLab(gitlabToken, {
@@ -26,14 +25,14 @@ export default class Staticman {
 
     const prop = params.property.toString();
     if (!(prop in remoteConfig)) {
-      throw new Error('Server is during maintainance');
+      throw new Error("Server is during maintainance");
     }
 
     const bod: Body = body as Body;
 
     const cfg = SiteConfig(remoteConfig[prop], rsa);
     if (cfg.get("branch") !== params.branch) {
-      throw new Error("branch name does not match.")
+      throw new Error("branch name does not match.");
     }
 
     const dirpath = resolvePlaceholder(cfg.get("path"), bod);
@@ -46,8 +45,7 @@ export default class Staticman {
     const message: Fields = {};
     Object.keys(fields).forEach((field: keyof Fields) => {
       const value = fields[field];
-      if (!allowed.includes(field as string))
-        return;
+      if (!allowed.includes(field as string)) return;
 
       message[field] = value;
     });
@@ -59,9 +57,9 @@ export default class Staticman {
         throw new Error(`Missing required field ${field}`);
       }
     });
-    
-    const path = `${dirpath}/${filename}.yml`
-    console.log(path)
+
+    const path = `${dirpath}/${filename}.yml`;
+    console.log(path);
     // await gl.commitFile(path, YAML.stringify(message), commitMessage);
   }
 }

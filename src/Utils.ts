@@ -17,7 +17,10 @@ export interface Body {
   [key: string]: Fields[];
 }
 
-export function resolvePlaceholder(subject: string, baseObject: object): string {
+export function resolvePlaceholder(
+  subject: string,
+  baseObject: object,
+): string {
   const matches = subject.match(/{(.*?)}/g);
   matches?.forEach((match) => {
     const escapedMatch = match.replace(/[-[\]/{}()*+?.\\^$|]/g, "\\$&");

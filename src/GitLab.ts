@@ -1,6 +1,6 @@
-import { Gitlab as GitlabRest } from '@gitbeaker/rest';
-import { GitError } from './BaseError';
-import YAML from 'yaml'
+import { Gitlab as GitlabRest } from "@gitbeaker/rest";
+import { GitError } from "./BaseError";
+import YAML from "yaml";
 import { Parameters } from "./Utils";
 
 export class GitLab {
@@ -12,15 +12,22 @@ export class GitLab {
     this.parameters = parameters;
     this.api = new GitlabRest({
       host: "https://gitlab.com",
-      token
+      token,
     });
 
     this.repositoryId = `${this.parameters.username}/${this.parameters.project}`;
   }
 
-  async readFile(path: string, getFullResponse: boolean = false): Promise<{[index: string]:any}> {
+  async readFile(
+    path: string,
+    getFullResponse: boolean = false,
+  ): Promise<{ [index: string]: any }> {
     const extension = path.split(".").pop();
-    const res = await this.api.RepositoryFiles.show(this.repositoryId, path, this.parameters.branch);
+    const res = await this.api.RepositoryFiles.show(
+      this.repositoryId,
+      path,
+      this.parameters.branch,
+    );
 
     let content;
     if (res.encoding === "base64") {
@@ -53,18 +60,22 @@ export class GitLab {
       throw new GitError("PARSING_ERROR", { cause: err });
     }
 
-      if (getFullResponse) {
-        return {
-          content,
-          file: {
-            content: res.content,
-          },
-        };
-      }
+    if (getFullResponse) {
+      return {
+        content,
+        file: {
+          content: res.content,
+        },
+      };
+    }
     return content;
   }
 
-  async commitFile(path: string, content: string, commitMessage: string): Promise<void> {
+  async commitFile(
+    path: string,
+    content: string,
+    commitMessage: string,
+  ): Promise<void> {
     return this.api.RepositoryFiles.create(
       this.repositoryId,
       path,
@@ -76,26 +87,34 @@ export class GitLab {
   }
 
   async test() {
-    console.log("yes yes")
+    console.log("yes yes");
 
     this.api.Users.showCurrentUser()
       .then(
-        ({ username, email, name, avatarUrl, bio, websiteUrl, organisation }) => {
-          console.log(username)
-        }
+        ({
+          username,
+          email,
+          name,
+          avatarUrl,
+          bio,
+          websiteUrl,
+          organisation,
+        }) => {
+          console.log(username);
+        },
       )
       .catch((err) => {
-        throw new err;
+        throw new err();
       });
 
-    console.log("inter")
+    console.log("inter");
 
     // let projects = await this.api.Projects.all({ maxPages: 2 });
     this.api.Projects.all().then((projects) => {
       console.log(projects);
     });
 
-    console.log("no no")
+    console.log("no no");
 
     this.api.Branches.show("RomainGiraud/lafav", "main").then(
       (res) => res.commit.id,
@@ -103,11 +122,10 @@ export class GitLab {
 
     this.api.RepositoryFiles.show("RomainGiraud/lafav", "staticman.yml", "main")
       .then((v) => {
-        console.log(v)
+        console.log(v);
       })
       .catch((err) => {
-        console.error(JSON.stringify(err.cause))
-      },
-    );
+        console.error(JSON.stringify(err.cause));
+      });
   }
 }
