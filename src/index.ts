@@ -1,29 +1,14 @@
 import { Elysia } from "elysia";
-import { GitLab } from "./GitLab";
-
-const gitlabToken = "XXXXXXXXXXXXXX";
-const remoteConfigFile = "staticman.yml";
+import Staticman from "./Staticman";
+import { Body } from "./Utils";
 
 const app = new Elysia()
   .onError(({ error }) => {
     return { error: error.toString() }
   })
-  .post("/entry/:service/:username/:project/:branch/:property", async ({ params: { service, username, project, branch, property }, body}) => {
-    const gl = new GitLab(gitlabToken, {
-      service,
-      username,
-      project,
-      branch,
-      property,
-    });
-    let remoteConfig = await gl.readFile(remoteConfigFile);
-
-    const prop = property.toString();
-    if (!(prop in remoteConfig)) {
-      throw new Error('Server is during maintainance');
-    }
-    let item = remoteConfig[prop];
-    console.log(item);
+  .post("/entry/:service/:username/:project/:branch/:property", async ({ params, body }) => {
+    const sm = new Staticman();
+    await sm.process(params, body as Body);
   })
   .listen(3000);
 

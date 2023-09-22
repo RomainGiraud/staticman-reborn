@@ -1,18 +1,12 @@
 import { Gitlab as GitlabRest } from '@gitbeaker/rest';
 import { GitError } from './BaseError';
 import YAML from 'yaml'
-
-interface Parameters {
-  service: string;
-  username: string;
-  project: string;
-  branch: string;
-  property: string;
-}
+import { Parameters } from "./Utils";
 
 export class GitLab {
   private api: InstanceType<typeof GitlabRest>;
   private parameters: Parameters;
+  private repositoryId: string;
 
   constructor(token: string, parameters: Parameters) {
     this.parameters = parameters;
@@ -20,11 +14,13 @@ export class GitLab {
       host: "https://gitlab.com",
       token
     });
+
+    this.repositoryId = `${this.parameters.username}/${this.parameters.project}`;
   }
 
   async readFile(path: string, getFullResponse: boolean = false): Promise<{[index: string]:any}> {
     const extension = path.split(".").pop();
-    const res = await this.api.RepositoryFiles.show(`${this.parameters.username}/${this.parameters.project}`, path, this.parameters.branch);
+    const res = await this.api.RepositoryFiles.show(this.repositoryId, path, this.parameters.branch);
 
     let content;
     if (res.encoding === "base64") {
@@ -66,6 +62,17 @@ export class GitLab {
         };
       }
     return content;
+  }
+
+  async commitFile(path: string, content: string, commitMessage: string): Promise<void> {
+    return this.api.RepositoryFiles.create(
+      this.repositoryId,
+      path,
+      this.parameters.branch,
+      Buffer.from(content).toString("base64"),
+      commitMessage,
+      { encoding: "base64" },
+    ).then(() => {});
   }
 
   async test() {

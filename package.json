@@ -8,7 +8,14 @@
   },
   "dependencies": {
     "@gitbeaker/rest": "^39.15.0",
+    "@types/convict": "^6.1.4",
+    "@types/node-rsa": "^1.1.1",
+    "@types/object-path": "^0.11.2",
+    "convict": "^6.2.4",
     "elysia": "latest",
+    "moment": "^2.29.4",
+    "node-rsa": "^1.1.1",
+    "object-path": "^0.11.8",
     "typescript": "^5.2.2",
     "yaml": "^2.3.2"
   },
