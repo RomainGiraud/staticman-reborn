@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
 import Staticman from "./Staticman";
-import { BodyRequest } from "./Utils";
+import { Fields, BodyRequest } from "./Utils";
 
 const app = new Elysia()
   .onError(({ error }) => {
@@ -9,13 +9,15 @@ const app = new Elysia()
   .post(
     "/entry/:service/:username/:project/:branch/:property",
     async ({ params, body, set }) => {
-      const sm = new Staticman();
-      await sm.process(params, body as BodyRequest);
-
       const br = body as BodyRequest;
-      if ("redirect" in br["options"]) {
-        console.log(`redirect to ${br["options"]["redirect"]}`)
-        set.redirect = br["options"]["redirect"];
+
+      const sm = new Staticman();
+      await sm.process(params, br);
+
+      const options = br["options"] as Fields[];
+      if ("redirect" in options) {
+        console.log(`redirect to ${options.redirect}`);
+        set.redirect = String(options["redirect"]);
       }
     },
   )

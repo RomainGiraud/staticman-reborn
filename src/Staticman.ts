@@ -99,21 +99,21 @@ export default class Staticman {
     const transforms: Transforms = this.siteConfig.get("transforms");
 
     const newFields: Fields = {};
-    Object.keys(transforms).forEach((field) => {
-      if (!(field in fields)) {
-        throw new Error(`Field ${field} does not exist`);
-      }
-      const fieldTransforms = transforms[field];
+    Object.keys(fields).forEach((field) => {
       let value = fields[field];
-      Array<string>()
-        .concat(fieldTransforms)
-        .forEach((transform) => {
-          Object.values(transformers).forEach((tr) => {
-            if (transform == tr.name) {
-              value = tr(value);
-            }
+
+      if (field in transforms) {
+        const fieldTransforms = transforms[field];
+        Array<string>()
+          .concat(fieldTransforms)
+          .forEach((transform) => {
+            Object.values(transformers).forEach((tr) => {
+              if (transform == tr.name) {
+                value = tr(value);
+              }
+            });
           });
-        });
+      }
 
       newFields[field] = value;
     });
@@ -203,9 +203,9 @@ export default class Staticman {
     const targetBranch = this.siteConfig.get("moderation")
       ? `staticman_${this.uuid}`
       : params.branch;
-    await gl.commitFile(
+    await gl.writeFileAndSendReview(
       filepath,
-      YAML.stringify(content),
+      content,
       commitMessage,
       targetBranch,
     );

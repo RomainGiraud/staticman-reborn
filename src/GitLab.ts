@@ -71,16 +71,37 @@ export class GitLab {
     return content;
   }
 
-  async commitFile(
+  async writeFileAndSendReview(
+    path: string,
+    content: string,
+    commitMessage: string,
+    branch: string,
+    reviewBody: string = "",
+  ): Promise<void> {
+    return this.getBranchHeadCommit(this.parameters.branch)
+      .then((sha) => this.createBranch(branch, sha))
+      .then(() => this.commitFile(path, content, commitMessage, branch))
+      .then(() => this.createReview(commitMessage, branch, reviewBody));
+  }
+
+  private async getBranchHeadCommit(branch: string): Promise<string> {
+    return this.api.Branches.show(this.repositoryId, branch).then(
+      (res) => res.commit.id,
+    );
+  }
+
+  private async createBranch(branch: string, sha: string): Promise<void> {
+    return this.api.Branches.create(this.repositoryId, branch, sha).then(
+      () => {},
+    );
+  }
+
+  private async commitFile(
     path: string,
     content: string,
     commitMessage: string,
     branch: string,
   ): Promise<void> {
-    console.log(`Commit file ${path} to ${branch}:`);
-    console.log(`  Commit message: ${commitMessage}`);
-    console.log(`  Content: ${content}`);
-    return;
     return this.api.RepositoryFiles.create(
       this.repositoryId,
       path,
@@ -88,6 +109,23 @@ export class GitLab {
       Buffer.from(content).toString("base64"),
       commitMessage,
       { encoding: "base64" },
+    ).then(() => {});
+  }
+
+  private async createReview(
+    reviewTitle: string,
+    branch: string,
+    reviewBody: string,
+  ): Promise<void> {
+    return this.api.MergeRequests.create(
+      this.repositoryId,
+      branch,
+      this.parameters.branch,
+      reviewTitle,
+      {
+        description: reviewBody,
+        removeSourceBranch: true,
+      },
     ).then(() => {});
   }
 }
