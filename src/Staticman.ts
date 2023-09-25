@@ -138,23 +138,24 @@ export default class Staticman {
         content = JSON.stringify(fields);
         break;
       case "frontmatter": {
-        extension = "md";
-        const contentField = Object.keys(transforms).find((field) => {
-          return Array<string>()
-            .concat(transforms[field])
-            .includes("frontmatterContent");
-        });
+          extension = "md";
+          const contentField = Object.keys(transforms).find((field) => {
+            return Array<string>()
+              .concat(transforms[field])
+              .includes("frontmatterContent");
+          });
 
-        if (!contentField) {
-          throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
+          if (!contentField) {
+            throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
+          }
+
+          const contentFM = fields[contentField];
+          const attributeFields = { ...fields };
+          delete attributeFields[contentField];
+
+          content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
         }
-
-        const contentFM = fields[contentField];
-        const attributeFields = { ...fields };
-        delete attributeFields[contentField];
-
-        content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
-      }
+        break;
       default:
         throw new Error("Invalid type format");
     }
@@ -174,7 +175,7 @@ export default class Staticman {
 
   async process(params: Parameters, bodyRequest: BodyRequest) {
     const gl = new GitLab(gitlabToken, params);
-    let remoteConfig = await gl.readFile(remoteConfigFile);
+    const remoteConfig = await gl.readFile(remoteConfigFile);
 
     const prop = params.property.toString();
     if (!(prop in remoteConfig)) {
@@ -248,7 +249,7 @@ export default class Staticman {
   }
 
   private resolvePlaceholders(fields: Fields): Fields {
-    let newFields: Fields = {};
+    const newFields: Fields = {};
     Object.keys(fields).forEach((field) => {
       if (typeof fields[field] !== "string") {
         throw new Error(`field ${field} is not a string`);
