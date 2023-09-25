@@ -75,57 +75,19 @@ export class GitLab {
     path: string,
     content: string,
     commitMessage: string,
+    branch: string,
   ): Promise<void> {
+    console.log(`Commit file ${path} to ${branch}:`);
+    console.log(`  Commit message: ${commitMessage}`);
+    console.log(`  Content: ${content}`);
+    return;
     return this.api.RepositoryFiles.create(
       this.repositoryId,
       path,
-      this.parameters.branch,
+      branch,
       Buffer.from(content).toString("base64"),
       commitMessage,
       { encoding: "base64" },
     ).then(() => {});
-  }
-
-  async test() {
-    console.log("yes yes");
-
-    this.api.Users.showCurrentUser()
-      .then(
-        ({
-          username,
-          email,
-          name,
-          avatarUrl,
-          bio,
-          websiteUrl,
-          organisation,
-        }) => {
-          console.log(username);
-        },
-      )
-      .catch((err) => {
-        throw new err();
-      });
-
-    console.log("inter");
-
-    // let projects = await this.api.Projects.all({ maxPages: 2 });
-    this.api.Projects.all().then((projects) => {
-      console.log(projects);
-    });
-
-    console.log("no no");
-
-    this.api.Branches.show("RomainGiraud/lafav", "main").then(
-      (res) => res.commit.id,
-    );
-
-    this.api.RepositoryFiles.show("RomainGiraud/lafav", "staticman.yml", "main")
-      .then((v) => {
-        console.log(v);
-      })
-      .catch((err) => {
-        console.error(JSON.stringify(err.cause));
-      });
   }
 }
