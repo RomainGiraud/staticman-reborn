@@ -1,0 +1,17 @@
+<form id="comment-form" method="POST" action="http://myinstance.org/entry/:service/:username/:project/:branch/:property">
+  <input name="options[redirect]" type="hidden" value="http://mysite.org/comment-posted">
+  <input name="options[parent]" type="hidden" value="0">
+  <input name="options[slug]" type="hidden" value="ref-post">
+
+  <textarea name="fields[message]" placeholder="Your message"></textarea>
+
+  <div>
+    <input type="text" name="fields[name]" placeholder="Your name">
+    <input type="email" name="fields[email]" placeholder="Your email">
+  </div>
+
+  <div>
+    <button>publish</button>
+    <button type="button">cancel</button>
+  </div>
+</form>
