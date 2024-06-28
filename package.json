@@ -2,7 +2,6 @@
   "name": "staticman-reborn",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "bun run --watch src/index.ts",
     "typecheck": "bun run tsc --noEmit --watch",
     "lint": "bun run eslint './**/*.ts' --cache",
@@ -10,28 +9,31 @@
     "fmt": "prettier --write --cache './**/*.{mjs,ts,tsx,js,jsx}'"
   },
   "dependencies": {
-    "@gitbeaker/rest": "^39.15.0",
+    "@gitbeaker/rest": "^40.0.3",
     "convict": "^6.2.4",
-    "elysia": "latest",
+    "elysia": "^1.0.25",
     "html-escaper": "^3.0.3",
-    "moment": "^2.29.4",
+    "install": "^0.13.0",
+    "moment": "^2.30.1",
     "node-rsa": "^1.1.1",
     "object-path": "^0.11.8",
-    "slug": "^8.2.3",
-    "typescript": "^5.2.2",
-    "yaml": "^2.3.2"
+    "slug": "^9.1.0",
+    "typescript": "^5.5.2",
+    "yaml": "^2.4.5"
   },
   "devDependencies": {
-    "@types/convict": "^6.1.4",
-    "@types/html-escaper": "^3.0.0",
-    "@types/node-rsa": "^1.1.1",
-    "@types/object-path": "^0.11.2",
-    "@types/slug": "^5.0.4",
-    "@typescript-eslint/eslint-plugin": "^6.7.2",
-    "@typescript-eslint/parser": "^6.7.2",
-    "bun-types": "latest",
-    "eslint": "^8.49.0",
-    "prettier": "^3.0.3"
+    "@types/convict": "^6.1.6",
+    "@types/html-escaper": "^3.0.2",
+    "@types/node-rsa": "^1.1.4",
+    "@types/object-path": "^0.11.4",
+    "@types/slug": "^5.0.8",
+    "@typescript-eslint/eslint-plugin": "^7.14.1",
+    "@typescript-eslint/parser": "^7.14.1",
+    "axios": "^1.7.2",
+    "bun-types": "^1.1.17",
+    "eslint": "^9.5.0",
+    "msw": "^2.3.1",
+    "prettier": "^3.3.2"
   },
   "module": "src/index.js"
 }

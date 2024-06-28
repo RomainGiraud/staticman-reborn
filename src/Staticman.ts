@@ -179,7 +179,7 @@ export default class Staticman {
 
     const prop = params.property.toString();
     if (!(prop in remoteConfig)) {
-      throw new Error("Server is during maintainance");
+      throw new Error("Server is under maintainance");
     }
 
     this.siteConfig = SiteConfig(remoteConfig[prop], rsa);
@@ -189,7 +189,7 @@ export default class Staticman {
 
     this.bodyRequest = bodyRequest as BodyRequest;
 
-    let fields: Fields = bodyRequest["fields"] as unknown as Fields;
+    let fields = bodyRequest["fields"];
     fields = this.validateFields(fields);
     fields = this.generateFields(fields);
     fields = this.resolvePlaceholders(fields);

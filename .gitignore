@@ -40,3 +40,10 @@ yarn-error.log*
 **/*.log
 package-lock.json
 **/*.bun
+
+config.json
+config.development.json
+config.production.json
+config.test.json
+
+.eslintcache

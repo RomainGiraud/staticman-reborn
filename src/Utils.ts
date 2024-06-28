@@ -7,7 +7,7 @@ export interface Parameters {
 }
 
 export type Fields = Record<string, string>;
-export type BodyRequest = Record<string, Fields[]>;
+export type BodyRequest = Record<string, Fields>;
 export type Transforms = Record<string, string | string[]>;
 
 export function createDate(options: any): string {

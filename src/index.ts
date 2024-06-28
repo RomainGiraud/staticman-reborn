@@ -14,7 +14,7 @@ const app = new Elysia()
       const sm = new Staticman();
       await sm.process(params, br);
 
-      const options = br["options"] as Fields[];
+      const options = br["options"];
       if ("redirect" in options) {
         console.log(`redirect to ${options.redirect}`);
         set.redirect = String(options["redirect"]);

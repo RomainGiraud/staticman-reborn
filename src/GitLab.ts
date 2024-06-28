@@ -20,8 +20,7 @@ export class GitLab {
 
   async readFile(
     path: string,
-    getFullResponse: boolean = false,
-  ): Promise<{ [index: string]: any }> {
+  ): Promise<any> {
     const extension = path.split(".").pop();
     const res = await this.api.RepositoryFiles.show(
       this.repositoryId,
@@ -60,14 +59,6 @@ export class GitLab {
       throw new GitError("PARSING_ERROR", { cause: err });
     }
 
-    if (getFullResponse) {
-      return {
-        content,
-        file: {
-          content: res.content,
-        },
-      };
-    }
     return content;
   }
 
