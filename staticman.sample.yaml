@@ -75,5 +75,5 @@ comments:
   # the name of the field and values are possible transformation types.
   transforms:
     name: [rmCR, escapeHTML]
-    email: [rmCR, escapeHTML]
+    email: "encrypt"
     message: [rmCR, escapeHTML]

@@ -3,6 +3,7 @@ import { BodyRequest, Parameters } from "./Utils";
 import { setupServer } from 'msw/node'
 import { http, HttpResponse, PathParams } from 'msw';
 import Staticman from "./Staticman";
+import * as transfomers from "./Transformers";
 import YAML from "yaml";
 import fs from 'fs';
 
@@ -161,7 +162,7 @@ const handlers = [
         p?.encoding != 'base64' ||
         p?.commit_message != 'New comment in my-post' ||
         content?.name != 'Romain' ||
-        content?.email != 'romain@example.org' ||
+        transfomers.decrypt(content?.email) != 'romain@example.org' ||
         content?.message != 'Hello, everything works fine!' ||
         id != `${requestParameters.username}/${requestParameters.project}`) {
       return new HttpResponse('Not found', {
