@@ -15,7 +15,7 @@ import Config from "./Config";
 import SiteConfig from "./SiteConfig";
 import * as transformers from "./Transformers";
 
-const gitlabToken = "XXXXXXXXXXXXXX";
+const gitlabToken = Config.get("gitlabToken");
 const remoteConfigFile = "staticman.yaml";
 
 const rsa = new NodeRSA();

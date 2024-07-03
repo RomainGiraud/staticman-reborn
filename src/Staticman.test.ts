@@ -1,13 +1,10 @@
 import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
-import { GitLab } from "./GitLab";
 import { BodyRequest, Parameters } from "./Utils";
 import { setupServer } from 'msw/node'
-import { http, HttpResponse, PathParams } from 'msw'
+import { http, HttpResponse, PathParams } from 'msw';
 import Staticman from "./Staticman";
 import YAML from "yaml";
-import fs from 'fs'
-import { file } from "bun";
-import * as transformers from "./Transformers";
+import fs from 'fs';
 
 const requestParameters: Parameters = {
   service: "gitlab",
@@ -55,7 +52,7 @@ const handlers = [
       });
     }
 
-    let content = fs.readFileSync('staticman.sample.yaml', 'utf8');
+    let content = fs.readFileSync('staticman.test.yaml', 'utf8');
     content = Buffer.from(content).toString("base64");
 
     return HttpResponse.json({
