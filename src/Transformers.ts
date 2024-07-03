@@ -14,8 +14,12 @@ export function downcase(value: string): string {
 
 const key = new NodeRSA();
 key.importKey(config.get("rsaPrivateKey"), "private");
-export function rsa(value: string): string {
-  return key.encrypt(Buffer.from(value), "base64", "utf8");
+export function encrypt(value: string): string {
+  return key.encrypt(Buffer.from(value), "base64", "buffer");
+}
+
+export function decrypt(value: string): string {
+  return key.decrypt(value, "utf8");
 }
 
 // remove carriage return
