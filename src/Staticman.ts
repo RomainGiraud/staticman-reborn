@@ -187,13 +187,16 @@ export default class Staticman {
       throw new Error("branch name does not match.");
     }
 
-    this.bodyRequest = bodyRequest as BodyRequest;
+    this.bodyRequest = bodyRequest;
 
     let fields = bodyRequest["fields"];
     fields = this.validateFields(fields);
     fields = this.generateFields(fields);
     fields = this.resolvePlaceholders(fields);
     fields = this.applyTransforms(fields);
+    if ("parent" in bodyRequest["options"]) {
+      fields["parent"] = bodyRequest["options"]["parent"];
+    }
     const [filepath, content] = this.generateFile(fields);
 
     const commitMessage = this.resolvePlaceholder(

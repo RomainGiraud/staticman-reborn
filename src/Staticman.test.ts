@@ -15,6 +15,19 @@ const requestParameters: Parameters = {
   property: "comments",
 };
 
+const bodyRequest: BodyRequest = {
+  fields: {
+    name: "Romain",
+    email: "romain@example.org",
+    message: "Hello, everything works fine!",
+  },
+  options: {
+    redirect: "http://google.com",
+    parent: "123",
+    slug: "my-post",
+  },
+};
+
 interface MergeRequestBody {
   source_branch: string;
   target_branch: string;
@@ -161,9 +174,10 @@ const handlers = [
     if (!regex.test(file_path.toString()) ||
         p?.encoding != 'base64' ||
         p?.commit_message != 'New comment in my-post' ||
-        content?.name != 'Romain' ||
-        transfomers.decrypt(content?.email) != 'romain@example.org' ||
-        content?.message != 'Hello, everything works fine!' ||
+        content?.name != bodyRequest.fields.name ||
+        transfomers.decrypt(content?.email) != bodyRequest.fields.email ||
+        content?.message != bodyRequest.fields.message ||
+        content?.parent != bodyRequest.options.parent ||
         id != `${requestParameters.username}/${requestParameters.project}`) {
       return new HttpResponse('Not found', {
         status: 404,
@@ -327,19 +341,6 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("Read a file", async () => {
-  const br: BodyRequest = {
-    fields: {
-      name: "Romain",
-      email: "romain@example.org",
-      message: "Hello, everything works fine!",
-    },
-    options: {
-      redirect: "http://google.com",
-      parent: "123",
-      slug: "my-post",
-    },
-  };
-
   const sm = new Staticman();
-  expect(sm.process(requestParameters, br)).resolves.toBeUndefined();
+  expect(sm.process(requestParameters, bodyRequest)).resolves.toBeUndefined();
 });
