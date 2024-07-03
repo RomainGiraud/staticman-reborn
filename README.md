@@ -17,6 +17,8 @@ With the following placeholders:
 
 A single staticman.yaml can have multiples properties to address several types of post.
 
+For a list of available transformers, see `src/Transformers.ts`.
+
 ## Test
 
 A full functional test exists (with mocks):
