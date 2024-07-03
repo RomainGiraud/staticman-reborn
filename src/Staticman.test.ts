@@ -2,17 +2,60 @@ import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
 import { GitLab } from "./GitLab";
 import { BodyRequest, Parameters } from "./Utils";
 import { setupServer } from 'msw/node'
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, PathParams } from 'msw'
 import Staticman from "./Staticman";
 import YAML from "yaml";
 import fs from 'fs'
+import { file } from "bun";
+import * as transformers from "./Transformers";
+
+const requestParameters: Parameters = {
+  service: "gitlab",
+  username: "user",
+  project: "test",
+  branch: "main",
+  property: "comments",
+};
+
+interface MergeRequestBody {
+  source_branch: string;
+  target_branch: string;
+  title: string;
+  description: string;
+  remove_source_branch: boolean;
+}
+
+interface CreateFileBody {
+  branch: string;
+  content: string;
+  commit_message: string;
+  encoding: string;
+}
+
+const getSHA256Hash = async (input: string) => {
+  const textAsBuffer = new TextEncoder().encode(input);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", textAsBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hash = hashArray
+    .map((item) => item.toString(16).padStart(2, "0"))
+    .join("");
+  return hash;
+};
 
 const handlers = [
   http.get('https://gitlab.com/api/v4/projects/:id/repository/files/:file_path', async ({request, params}) => {
     const { id, file_path } = params;
     const p = new URL(request.url).searchParams;
 
-    let content = fs.readFileSync('staticman.yaml', 'utf8');
+    if (p.get('ref') != requestParameters.branch ||
+        id != `${requestParameters.username}/${requestParameters.project}` ||
+        file_path != 'staticman.yaml') {
+      return new HttpResponse('Not found', {
+        status: 404,
+      });
+    }
+
+    let content = fs.readFileSync('staticman.sample.yaml', 'utf8');
     content = Buffer.from(content).toString("base64");
 
     return HttpResponse.json({
@@ -20,18 +63,26 @@ const handlers = [
       file_path: file_path,
       size: content.length,
       encoding: "base64",
+      content_sha256: getSHA256Hash(content),
+      ref: "main",
+      blob_id: "7ff45a9f8ef9c1816405e571cb1a1c3eaff270ea",
+      commit_id: "7b5c3cc8be40ee161ae89a06bba6229da1032a0c",
+      last_commit_id: "8aa091d30e9451160653cbb341d2dab4847eed76",
+      execute_filemode: false,
       content,
     });
   }),
-  
+
   http.get('https://gitlab.com/api/v4/projects/:id/repository/branches/:branch', async ({request, params}) => {
-    // return HttpResponse.json({
-    //   name: "main",
-    //   commit: {
-    //     id: "7b5c3cc8be40ee161ae89a06bba6229da1032a0c",
-    //     short_id: "7b5c3cc",
-    //   }
-    // });
+    const { id, branch } = params;
+
+    if (branch != requestParameters.branch ||
+        id != `${requestParameters.username}/${requestParameters.project}`) {
+      return new HttpResponse('Not found', {
+        status: 404,
+      });
+    }
+
     return HttpResponse.json({
       name: "main",
       merged: false,
@@ -40,7 +91,7 @@ const handlers = [
       developers_can_push: false,
       developers_can_merge: false,
       can_push: true,
-      web_url: "https://gitlab.example.com/my-group/my-project/-/tree/main",
+      web_url: `https://gitlab.com/${id}/-/tree/main`,
       commit: {
         id: "7b5c3cc8be40ee161ae89a06bba6229da1032a0c",
         short_id: "7b5c3cc",
@@ -57,12 +108,20 @@ const handlers = [
         committer_email: "john@example.com",
         committed_date: "2012-06-28T03:44:20-07:00",
         trailers: {},
-        web_url: "https://gitlab.example.com/my-group/my-project/-/commit/7b5c3cc8be40ee161ae89a06bba6229da1032a0c"
+        web_url: `https://gitlab.com/${id}/-/commit/7b5c3cc8be40ee161ae89a06bba6229da1032a0c`
       }
     });
   }),
-  
+
   http.post('https://gitlab.com/api/v4/projects/:id/repository/branches', async ({request, params}) => {
+    const { id } = params;
+
+    if (id != `${requestParameters.username}/${requestParameters.project}`) {
+      return new HttpResponse('Not found', {
+        status: 404,
+      });
+    }
+
     return HttpResponse.json({
       "commit": {
         "id": "7b5c3cc8be40ee161ae89a06bba6229da1032a0c",
@@ -80,7 +139,7 @@ const handlers = [
         "committer_email": "john@example.com",
         "committed_date": "2012-06-28T03:44:20-07:00",
         "trailers": {},
-        "web_url": "https://gitlab.example.com/my-group/my-project/-/commit/7b5c3cc8be40ee161ae89a06bba6229da1032a0c"
+        "web_url": `https://gitlab.com/${id}/-/commit/7b5c3cc8be40ee161ae89a06bba6229da1032a0c`
       },
       "name": "newbranch",
       "merged": false,
@@ -89,18 +148,48 @@ const handlers = [
       "developers_can_push": false,
       "developers_can_merge": false,
       "can_push": true,
-      "web_url": "https://gitlab.example.com/my-group/my-project/-/tree/newbranch"
+      "web_url": `https://gitlab.com/${id}/-/tree/newbranch`
     });
   }),
-  
-  http.post('https://gitlab.com/api/v4/projects/:id/repository/files/:file_path', async ({request, params}) => {
+
+  http.post<PathParams, CreateFileBody>('https://gitlab.com/api/v4/projects/:id/repository/files/:file_path', async ({request, params}) => {
+    const { id, file_path } = params;
+    const p = await request.json();
+
+    const contentDecoded = Buffer.from(p.content, 'base64').toString('utf8');
+    const content = YAML.parse(contentDecoded);
+
+    const regex = /^comments\/my-post\/comment-\d+\.yaml$/;
+    if (!regex.test(file_path.toString()) ||
+        p?.encoding != 'base64' ||
+        p?.commit_message != 'New comment in my-post' ||
+        content?.name != 'Romain' ||
+        content?.email != 'romain@example.org' ||
+        content?.message != 'Hello, everything works fine!' ||
+        id != `${requestParameters.username}/${requestParameters.project}`) {
+      return new HttpResponse('Not found', {
+        status: 404,
+      });
+    }
+
     return HttpResponse.json({
-      "file_path": "app/project.rb",
-      "branch": "main"
+      "file_path": file_path,
+      "branch": requestParameters.branch
     });
   }),
-  
-  http.post('https://gitlab.com/api/v4/projects/:id/merge_requests', async ({request, params}) => {
+
+  http.post<PathParams, MergeRequestBody>('https://gitlab.com/api/v4/projects/:id/merge_requests', async ({request, params}) => {
+    const { id } = params;
+    const p = await request.json();
+
+    if (!/^staticman_[\w-]+$/.test(p?.source_branch) ||
+        p?.target_branch != requestParameters.branch ||
+        id != `${requestParameters.username}/${requestParameters.project}`) {
+      return new HttpResponse('Not found', {
+        status: 404,
+      });
+    }
+
     return HttpResponse.json({
       "id": 1,
       "iid": 1,
@@ -122,7 +211,7 @@ const handlers = [
         "username": "admin",
         "state": "active",
         "avatar_url": null,
-        "web_url" : "https://gitlab.example.com/admin"
+        "web_url" : "https://gitlab.com/admin"
       },
       "assignee": {
         "id": 1,
@@ -130,7 +219,7 @@ const handlers = [
         "username": "admin",
         "state": "active",
         "avatar_url": null,
-        "web_url" : "https://gitlab.example.com/admin"
+        "web_url" : "https://gitlab.com/admin"
       },
       "source_project_id": 2,
       "target_project_id": 3,
@@ -151,7 +240,7 @@ const handlers = [
         "updated_at": "2015-02-02T19:49:26.013Z",
         "due_date": "2018-09-22",
         "start_date": "2018-08-08",
-        "web_url": "https://gitlab.example.com/my-group/my-project/milestones/1"
+        "web_url": `https://gitlab.com/${id}/milestones/1`
       },
       "merge_when_pipeline_succeeds": true,
       "merge_status": "can_be_merged",
@@ -166,7 +255,7 @@ const handlers = [
       "force_remove_source_branch": false,
       "allow_collaboration": false,
       "allow_maintainer_to_push": false,
-      "web_url": "http://gitlab.example.com/my-group/my-project/merge_requests/1",
+      "web_url": `http://gitlab.com/${id}/merge_requests/1`,
       "references": {
         "short": "!1",
         "relative": "!1",
@@ -186,7 +275,7 @@ const handlers = [
         "name": "Douwe Maan",
         "username": "DouweM",
         "state": "active",
-        "avatar_url": "https://gitlab.example.com/uploads/-/system/user/avatar/87854/avatar.png",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/87854/avatar.png",
         "web_url": "https://gitlab.com/DouweM"
       },
       "merge_user": {
@@ -194,7 +283,7 @@ const handlers = [
         "name": "Douwe Maan",
         "username": "DouweM",
         "state": "active",
-        "avatar_url": "https://gitlab.example.com/uploads/-/system/user/avatar/87854/avatar.png",
+        "avatar_url": "https://gitlab.com/uploads/-/system/user/avatar/87854/avatar.png",
         "web_url": "https://gitlab.com/DouweM"
       },
       "merged_at": "2018-09-07T11:16:17.520Z",
@@ -209,7 +298,7 @@ const handlers = [
         "sha": "2be7ddb704c7b6b83732fdd5b9f09d5a397b5f8f",
         "ref": "patch-28",
         "status": "success",
-        "web_url": "https://gitlab.example.com/my-group/my-project/pipelines/29626725"
+        "web_url": `https://gitlab.com/${id}/pipelines/29626725`
       },
       "diff_refs": {
         "base_sha": "c380d3acebd181f13629a25d2e2acca46ffe1e00",
@@ -229,7 +318,7 @@ const server = setupServer(...handlers);
 
 // Establish API mocking before all tests.
 beforeAll(() => server.listen({
-  onUnhandledRequest: 'warn',
+  onUnhandledRequest: 'error',
 }));
 
 // Reset any request handlers that we may add during the tests,
@@ -240,26 +329,19 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("Read a file", async () => {
-  const params: Parameters = {
-    service: "gitlab",
-    username: "user",
-    project: "test",
-    branch: "main",
-    property: "comments",
-  };
   const br: BodyRequest = {
     fields: {
       name: "Romain",
       email: "romain@example.org",
-      message: "Coucou tout va bien",
+      message: "Hello, everything works fine!",
     },
     options: {
       redirect: "http://google.com",
-      parent: "",
-      slug: "ici-et-la",
+      parent: "123",
+      slug: "my-post",
     },
   };
 
   const sm = new Staticman();
-  expect(sm.process(params, br)).resolves.toBeUndefined();
+  expect(sm.process(requestParameters, br)).resolves.toBeUndefined();
 });
