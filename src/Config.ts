@@ -1,6 +1,6 @@
 import convict from "convict";
 
-const schema = {
+export const schema = {
   akismet: {
     site: {
       doc: "URL of an Akismet account used for spam checking.",
@@ -111,13 +111,13 @@ const schema = {
   },
 };
 
-const conf = convict(schema);
+export const Config = convict(schema);
 
-const filename = `config.${conf.get("env")}.json`;
-conf.loadFile(filename);
-conf.validate();
+const filename = `config.${Config.get("env")}.json`;
+Config.loadFile(filename);
+Config.validate();
 
 console.log(`(*) Local config file loaded ${filename}`);
 
-export default conf;
-export { schema };
+export const PrivateKey = crypto.createPrivateKey(Buffer.from(Config.get("rsaPrivateKey")));
+export const PublicKey = crypto.createPublicKey(PrivateKey);

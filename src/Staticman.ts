@@ -6,32 +6,33 @@ import {
   Transforms,
   createDate,
 } from "./Utils";
-import NodeRSA from "node-rsa";
 import objectPath from "object-path";
 import moment from "moment";
 import YAML from "yaml";
+import { z } from "zod";
 
-import Config from "./Config";
-import SiteConfig from "./SiteConfig";
+import { Config } from "./Config";
 import * as transformers from "./Transformers";
+import { ParseRemoteConfig, SitePropertySchema } from "./SiteConfig";
 
 const gitlabToken = Config.get("gitlabToken") || '';
 const remoteConfigFile = "staticman.yaml";
 
-const rsa = new NodeRSA();
-rsa.importKey(Config.get("rsaPrivateKey"), "private");
-
 export default class Staticman {
   private uuid: string;
   private bodyRequest: BodyRequest = {};
-  private siteConfig: any; // TODO
+  private siteConfig?: z.infer<typeof SitePropertySchema>;
 
   constructor() {
     this.uuid = crypto.randomUUID();
   }
 
   private validateFields(fields: Fields): Fields {
-    const allowed: string[] = this.siteConfig.get("allowedFields") as string[];
+    if (this.siteConfig === undefined) {
+      throw new Error("siteConfig is undefined");
+    }
+
+    const allowed: string[] = this.siteConfig.allowedFields;
     const newFields: Fields = {};
     Object.keys(fields).forEach((field: keyof Fields) => {
       const value = fields[field];
@@ -41,9 +42,7 @@ export default class Staticman {
     });
 
     const keys = Object.keys(newFields);
-    const required: string[] = this.siteConfig.get(
-      "requiredFields",
-    ) as string[];
+    const required: string[] = this.siteConfig.requiredFields;
     required.forEach((field) => {
       if (!keys.includes(field)) {
         throw new Error(`Missing required field ${field}`);
@@ -54,41 +53,37 @@ export default class Staticman {
   }
 
   private generateFields(fields: Fields): Fields {
-    const generatedFields = this.siteConfig.get("generatedFields");
+    if (this.siteConfig === undefined) {
+      throw new Error("siteConfig is undefined");
+    }
+
+    const generatedFields = this.siteConfig.generatedFields;
 
     Object.keys(generatedFields).forEach((field) => {
       const generatedField = generatedFields[field];
 
-      if (
-        typeof generatedField === "object" &&
-        !(generatedField instanceof Array)
-      ) {
-        const options = generatedField.options || {};
+      switch (generatedField.type) {
+        case "date":
+          fields[field] = createDate(generatedField.format);
+          break;
 
-        switch (generatedField.type) {
-          case "date":
-            fields[field] = createDate(options);
-            break;
+        // TODO: Remove 'github' when v2 API is no longer supported
+        // case "github":
+        // case "user":
+        //   if (this.gitUser && typeof options.property === "string") {
+        //     data[field] = objectPath.get(this.gitUser, options.property);
+        //   }
+        //   break;
 
-          // TODO: Remove 'github' when v2 API is no longer supported
-          // case "github":
-          // case "user":
-          //   if (this.gitUser && typeof options.property === "string") {
-          //     data[field] = objectPath.get(this.gitUser, options.property);
-          //   }
-          //   break;
+        // case "slugify":
+        //   if (typeof options.field === "string" && typeof fields[options.field] === "string") {
+        //     fields[field] = slug(fields[options.field]).toLowerCase();
+        //   }
+        //   break;
 
-          // case "slugify":
-          //   if (typeof options.field === "string" && typeof fields[options.field] === "string") {
-          //     fields[field] = slug(fields[options.field]).toLowerCase();
-          //   }
-          //   break;
-
-          default:
-            throw new Error(`Invalid type ${generatedField.type}`);
-        }
-      } else {
-        fields[field] = generatedField;
+        case "literal":
+          fields[field] = generatedField.value;
+          break;
       }
     });
 
@@ -96,7 +91,11 @@ export default class Staticman {
   }
 
   private applyTransforms(fields: Fields): Fields {
-    const transforms: Transforms = this.siteConfig.get("transforms");
+    if (this.siteConfig === undefined) {
+      throw new Error("siteConfig is undefined");
+    }
+
+    const transforms: Transforms = this.siteConfig.transforms;
 
     const newFields: Fields = {};
     Object.keys(fields).forEach((field) => {
@@ -122,11 +121,15 @@ export default class Staticman {
   }
 
   private generateFile(fields: Fields): [string, string] {
-    const transforms: Transforms = this.siteConfig.get("transforms");
+    if (this.siteConfig === undefined) {
+      throw new Error("siteConfig is undefined");
+    }
+
+    const transforms: Transforms = this.siteConfig.transforms;
 
     let extension: string;
     let content: string;
-    switch (this.siteConfig.get("format")) {
+    switch (this.siteConfig.format) {
       case "yml":
       case "yaml":
         // http://yaml.org/faq.html
@@ -138,34 +141,34 @@ export default class Staticman {
         content = JSON.stringify(fields);
         break;
       case "frontmatter": {
-          extension = "md";
-          const contentField = Object.keys(transforms).find((field) => {
-            return Array<string>()
-              .concat(transforms[field])
-              .includes("frontmatterContent");
-          });
+        extension = "md";
+        const contentField = Object.keys(transforms).find((field) => {
+          return Array<string>()
+            .concat(transforms[field])
+            .includes("frontmatterContent");
+        });
 
-          if (!contentField) {
-            throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
-          }
-
-          const contentFM = fields[contentField];
-          const attributeFields = { ...fields };
-          delete attributeFields[contentField];
-
-          content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
+        if (!contentField) {
+          throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
         }
+
+        const contentFM = fields[contentField];
+        const attributeFields = { ...fields };
+        delete attributeFields[contentField];
+
+        content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
+      }
         break;
       default:
         throw new Error("Invalid type format");
     }
 
     const dirpath = this.resolvePlaceholder(
-      this.siteConfig.get("path"),
+      this.siteConfig.path,
       this.bodyRequest,
     );
     const filename = this.resolvePlaceholder(
-      this.siteConfig.get("filename"),
+      this.siteConfig.filename,
       this.bodyRequest,
     );
     const path = `${dirpath}/${filename}.${extension}`;
@@ -174,20 +177,25 @@ export default class Staticman {
   }
 
   async process(params: Parameters, bodyRequest: BodyRequest) {
-    const gl = new GitLab(gitlabToken, params);
-    const remoteConfig = await gl.readFile(remoteConfigFile);
+    this.bodyRequest = bodyRequest;
 
-    const prop = params.property.toString();
-    if (!(prop in remoteConfig)) {
+    const gl = new GitLab(gitlabToken, params);
+    const remoteConfigObject = await gl.readFile(remoteConfigFile);
+    const remoteConfig = ParseRemoteConfig(remoteConfigObject);
+
+    if (remoteConfig.success === false) {
+      throw new Error(`Remote config file is invalid: ${remoteConfig.error}`);
+    }
+
+    const prop = params.property;
+    if (!(prop in remoteConfig.data)) {
       throw new Error("Server is under maintainance");
     }
 
-    this.siteConfig = SiteConfig(remoteConfig[prop], rsa);
-    if (this.siteConfig.get("branch") !== params.branch) {
+    this.siteConfig = remoteConfig.data[prop];
+    if (this.siteConfig.branch !== params.branch) {
       throw new Error("branch name does not match.");
     }
-
-    this.bodyRequest = bodyRequest;
 
     let fields = bodyRequest["fields"];
     fields = this.validateFields(fields);
@@ -200,11 +208,11 @@ export default class Staticman {
     const [filepath, content] = this.generateFile(fields);
 
     const commitMessage = this.resolvePlaceholder(
-      this.siteConfig.get("commitMessage"),
+      this.siteConfig.commitMessage,
       this.bodyRequest,
     );
 
-    const targetBranch = this.siteConfig.get("moderation")
+    const targetBranch = this.siteConfig.moderation
       ? `staticman_${this.uuid}`
       : params.branch;
     await gl.writeFileAndSendReview(

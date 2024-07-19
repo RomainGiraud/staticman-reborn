@@ -1,8 +1,7 @@
-import NodeRSA from "node-rsa";
 import { escape } from "html-escaper";
 import slug from "slug";
-
-import config from "./Config";
+import crypto from "crypto";
+import { PrivateKey, PublicKey } from "./Config";
 
 export function upcase(value: string): string {
   return String(value).toUpperCase();
@@ -12,14 +11,14 @@ export function downcase(value: string): string {
   return String(value).toLowerCase();
 }
 
-const key = new NodeRSA();
-key.importKey(config.get("rsaPrivateKey"), "private");
 export function encrypt(value: string): string {
-  return key.encrypt(Buffer.from(value), "base64", "buffer");
+  const enc = crypto.publicEncrypt(PublicKey, Buffer.from(value));
+  return enc.toString("base64");
 }
 
 export function decrypt(value: string): string {
-  return key.decrypt(value, "utf8");
+  const dec = crypto.privateDecrypt(PrivateKey, Buffer.from(value, "base64"));
+  return dec.toString();
 }
 
 // remove carriage return

@@ -1,25 +1,39 @@
-import { Elysia } from "elysia";
+import { Elysia, form, t } from "elysia";
 import Staticman from "./Staticman";
-import { Fields, BodyRequest } from "./Utils";
+import { formDataToJson } from "./Utils";
 
 const app = new Elysia()
   .onError(({ error }) => {
     return { error: error.toString() };
   })
+  .onParse(async ({ request, contentType }) => {
+    if (contentType === 'multipart/form-data') {
+      return formDataToJson(await request.formData());
+    }
+  })
   .post(
     "/entry/:service/:username/:project/:branch/:property",
     async ({ params, body, set }) => {
-      const br = body as BodyRequest;
-
       const sm = new Staticman();
-      await sm.process(params, br);
+      await sm.process(params, body);
 
-      const options = br["options"];
+      const options = body["options"];
       if ("redirect" in options) {
-        console.log(`redirect to ${options.redirect}`);
         set.redirect = String(options["redirect"]);
       }
-    },
+    }, {
+    params: t.Object({
+      service: t.String(),
+      username: t.String(),
+      project: t.String(),
+      branch: t.String(),
+      property: t.String(),
+    }),
+    body: t.Object({
+      fields: t.Record(t.String(), t.Any()),
+      options: t.Record(t.String(), t.Any()),
+    }),
+  }
   )
   .listen(3000);
 

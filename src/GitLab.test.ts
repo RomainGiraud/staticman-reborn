@@ -3,13 +3,10 @@ import { GitLab } from "./GitLab";
 import { Parameters } from "./Utils";
 import { setupServer } from 'msw/node'
 import { http, HttpResponse } from 'msw'
-import { visit } from "yaml";
 
 const handlers = [
   http.get('https://gitlab.com/api/v4/projects/:id/repository/files/:file_path', async ({request, params}) => {
-    const { id, file_path } = params;
-    const p = new URL(request.url).searchParams;
-    //console.log(`------ ${id} / ${file_path} | ${p.get('ref')}`)
+    const { file_path } = params;
 
     const content = "ewogICAgIm5hbWUiOiAiUHl0aG9uIiwKICAgICJ5ZWFyX2xhdW5jaGVkIjogMTk5MSwKICAgICJmb3VuZGVyIjogIkd1aWRvIHZhbiBSb3NzdW0iLAogICAgInByaW1hcnlfdXNlX2Nhc2VzIjogIldlYiBEZXZlbG9wbWVudCwgRGF0YSBBbmFseXNpcywgQXJ0aWZpY2lhbCBJbnRlbGxpZ2VuY2UsIFNjaWVudGlmaWMgQ29tcHV0aW5nIgp9";
     return HttpResponse.json({

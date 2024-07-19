@@ -1,5 +1,4 @@
-import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
-import { GitLab } from "./GitLab";
+import { expect, test } from "bun:test";
 import * as transformers from "./Transformers";
 
 test("upcase", () => {
