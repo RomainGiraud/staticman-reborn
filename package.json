@@ -3,10 +3,11 @@
   "version": "1.0.50",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "typecheck": "bun run tsc --noEmit --watch",
+    "typecheck": "bun run tsc --noEmit",
     "lint": "bun run eslint './**/*.ts' --cache",
     "lint:fix": "bun run eslint './**/*.ts' --cache --fix",
-    "fmt": "prettier --write --cache './**/*.{mjs,ts,tsx,js,jsx}'",
+    "fmt": "prettier --check --cache './**/*.{mjs,ts,tsx,js,jsx}'",
+    "fmt:fix": "bun fmt --write",
     "prepare": "husky"
   },
   "dependencies": {

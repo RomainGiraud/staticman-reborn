@@ -1,40 +1,42 @@
 import { GitLab } from "./GitLab";
-import {
-  Parameters,
-  BodyRequest,
-  Fields,
-  Transforms,
-  createDate,
-} from "./Utils";
+import { Parameters, createDate } from "./Utils";
 import objectPath from "object-path";
 import moment from "moment";
 import YAML from "yaml";
-import { z } from "zod";
+import { type Static } from "elysia";
 
 import { Config } from "./Config";
 import * as transformers from "./Transformers";
-import { ParseRemoteConfig, SitePropertySchema } from "./SiteConfig";
+import {
+  ParseRemoteConfig,
+  SitePropertySchema,
+  BodyRequest,
+  BodyElement,
+  SiteTransforms,
+} from "./SiteConfig";
 
-const gitlabToken = Config.get("gitlabToken") || '';
+const gitlabToken = Config.get("gitlabToken") || "";
 const remoteConfigFile = "staticman.yaml";
 
 export default class Staticman {
   private uuid: string;
-  private bodyRequest: BodyRequest = {};
-  private siteConfig?: z.infer<typeof SitePropertySchema>;
+  private bodyRequest = {};
+  private siteConfig?: Static<typeof SitePropertySchema>;
 
   constructor() {
     this.uuid = crypto.randomUUID();
   }
 
-  private validateFields(fields: Fields): Fields {
+  private validateFields(
+    fields: Static<typeof BodyElement>,
+  ): Static<typeof BodyElement> {
     if (this.siteConfig === undefined) {
       throw new Error("siteConfig is undefined");
     }
 
     const allowed: string[] = this.siteConfig.allowedFields;
-    const newFields: Fields = {};
-    Object.keys(fields).forEach((field: keyof Fields) => {
+    const newFields: Static<typeof BodyElement> = {};
+    Object.keys(fields).forEach((field: keyof Static<typeof BodyElement>) => {
       const value = fields[field];
       if (!allowed.includes(field as string)) return;
 
@@ -52,7 +54,9 @@ export default class Staticman {
     return newFields;
   }
 
-  private generateFields(fields: Fields): Fields {
+  private generateFields(
+    fields: Static<typeof BodyElement>,
+  ): Static<typeof BodyElement> {
     if (this.siteConfig === undefined) {
       throw new Error("siteConfig is undefined");
     }
@@ -90,14 +94,17 @@ export default class Staticman {
     return fields;
   }
 
-  private applyTransforms(fields: Fields): Fields {
+  private applyTransforms(
+    fields: Static<typeof BodyElement>,
+  ): Static<typeof BodyElement> {
     if (this.siteConfig === undefined) {
       throw new Error("siteConfig is undefined");
     }
 
-    const transforms: Transforms = this.siteConfig.transforms;
+    const transforms: Static<typeof SiteTransforms> =
+      this.siteConfig.transforms;
 
-    const newFields: Fields = {};
+    const newFields: Static<typeof BodyElement> = {};
     Object.keys(fields).forEach((field) => {
       let value = fields[field];
 
@@ -120,12 +127,13 @@ export default class Staticman {
     return newFields;
   }
 
-  private generateFile(fields: Fields): [string, string] {
+  private generateFile(fields: Static<typeof BodyElement>): [string, string] {
     if (this.siteConfig === undefined) {
       throw new Error("siteConfig is undefined");
     }
 
-    const transforms: Transforms = this.siteConfig.transforms;
+    const transforms: Static<typeof SiteTransforms> =
+      this.siteConfig.transforms;
 
     let extension: string;
     let content: string;
@@ -140,24 +148,25 @@ export default class Staticman {
         extension = "json";
         content = JSON.stringify(fields);
         break;
-      case "frontmatter": {
-        extension = "md";
-        const contentField = Object.keys(transforms).find((field) => {
-          return Array<string>()
-            .concat(transforms[field])
-            .includes("frontmatterContent");
-        });
+      case "frontmatter":
+        {
+          extension = "md";
+          const contentField = Object.keys(transforms).find((field) => {
+            return Array<string>()
+              .concat(transforms[field])
+              .includes("frontmatterContent");
+          });
 
-        if (!contentField) {
-          throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
+          if (!contentField) {
+            throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
+          }
+
+          const contentFM = fields[contentField];
+          const attributeFields = { ...fields };
+          delete attributeFields[contentField];
+
+          content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
         }
-
-        const contentFM = fields[contentField];
-        const attributeFields = { ...fields };
-        delete attributeFields[contentField];
-
-        content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
-      }
         break;
       default:
         throw new Error("Invalid type format");
@@ -176,28 +185,30 @@ export default class Staticman {
     return [path, content];
   }
 
-  async process(params: Parameters, bodyRequest: BodyRequest) {
+  async process(params: Parameters, bodyRequest: Static<typeof BodyRequest>) {
     this.bodyRequest = bodyRequest;
 
     const gl = new GitLab(gitlabToken, params);
     const remoteConfigObject = await gl.readFile(remoteConfigFile);
-    const remoteConfig = ParseRemoteConfig(remoteConfigObject);
 
-    if (remoteConfig.success === false) {
-      throw new Error(`Remote config file is invalid: ${remoteConfig.error}`);
+    let remoteConfig;
+    try {
+      remoteConfig = ParseRemoteConfig(remoteConfigObject);
+    } catch (error) {
+      throw new Error(`Remote config file is invalid: ${error}`);
     }
 
     const prop = params.property;
-    if (!(prop in remoteConfig.data)) {
+    if (!(prop in remoteConfig)) {
       throw new Error("Server is under maintainance");
     }
 
-    this.siteConfig = remoteConfig.data[prop];
+    this.siteConfig = remoteConfig[prop];
     if (this.siteConfig.branch !== params.branch) {
       throw new Error("branch name does not match.");
     }
 
-    let fields = bodyRequest["fields"];
+    let fields = bodyRequest.fields;
     fields = this.validateFields(fields);
     fields = this.generateFields(fields);
     fields = this.resolvePlaceholders(fields);
@@ -259,8 +270,10 @@ export default class Staticman {
     return subject;
   }
 
-  private resolvePlaceholders(fields: Fields): Fields {
-    const newFields: Fields = {};
+  private resolvePlaceholders(
+    fields: Static<typeof BodyElement>,
+  ): Static<typeof BodyElement> {
+    const newFields: Static<typeof BodyElement> = {};
     Object.keys(fields).forEach((field) => {
       if (typeof fields[field] !== "string") {
         throw new Error(`field ${field} is not a string`);

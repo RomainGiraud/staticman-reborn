@@ -18,9 +18,7 @@ export class GitLab {
     this.repositoryId = `${this.parameters.username}/${this.parameters.project}`;
   }
 
-  async readFile(
-    path: string,
-  ): Promise<any> {
+  async readFile(path: string): Promise<unknown> {
     const extension = path.split(".").pop();
     const res = await this.api.RepositoryFiles.show(
       this.repositoryId,

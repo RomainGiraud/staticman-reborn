@@ -6,7 +6,7 @@ describe("convert FormData to JSON", () => {
     const formData = new FormData();
     formData.append("mykey", "myvalue");
     expect(utils.formDataToJson(formData)).toEqual({
-      mykey: 'myvalue',
+      mykey: "myvalue",
     });
   });
 
@@ -17,7 +17,7 @@ describe("convert FormData to JSON", () => {
       myhash: {
         mykey: {
           mysubkey: {
-            mysubsubkey: 'myvalue',
+            mysubsubkey: "myvalue",
           },
         },
       },
@@ -30,55 +30,52 @@ describe("convert FormData to JSON", () => {
     formData.append("myhash[mykey2]", "myvalue2");
     expect(utils.formDataToJson(formData)).toEqual({
       myhash: {
-        mykey1: 'myvalue1',
-        mykey2: 'myvalue2',
+        mykey1: "myvalue1",
+        mykey2: "myvalue2",
       },
     });
   });
 
   test("array", () => {
     const formData = new FormData();
-    formData.append("arr[]", 'val1');
-    formData.append("arr[]", 'val2');
-    formData.append("arr[]", 'val3');
+    formData.append("arr[]", "val1");
+    formData.append("arr[]", "val2");
+    formData.append("arr[]", "val3");
     expect(utils.formDataToJson(formData)).toEqual({
-      arr: ['val1', 'val2', 'val3'],
+      arr: ["val1", "val2", "val3"],
     });
   });
 
   test("array of object", () => {
     const formData = new FormData();
-    formData.append("arr[].name", 'John');
-    formData.append("arr[].age", '20');
-    formData.append("arr[].name", 'Jane');
-    formData.append("arr[].age", '40');
+    formData.append("arr[].name", "John");
+    formData.append("arr[].age", "20");
+    formData.append("arr[].name", "Jane");
+    formData.append("arr[].age", "40");
     expect(utils.formDataToJson(formData)).toEqual({
       arr: [
-        { name: 'John', age: '20' },
-        { name: 'Jane', age: '40' },
+        { name: "John", age: "20" },
+        { name: "Jane", age: "40" },
       ],
     });
   });
 
   test("array of partial object", () => {
     const formData = new FormData();
-    formData.append("arr[].name", 'John');
-    formData.append("arr[].name", 'Jane');
-    formData.append("arr[].age", '40');
+    formData.append("arr[].name", "John");
+    formData.append("arr[].name", "Jane");
+    formData.append("arr[].age", "40");
     expect(utils.formDataToJson(formData)).toEqual({
-      arr: [
-        { name: 'John', },
-        { name: 'Jane', age: '40' },
-      ],
+      arr: [{ name: "John" }, { name: "Jane", age: "40" }],
     });
   });
 
   test("double array ", () => {
     const formData = new FormData();
-    formData.append("arr[][]", 'John');
-    formData.append("arr[][]", 'Doe');
+    formData.append("arr[][]", "John");
+    formData.append("arr[][]", "Doe");
     expect(utils.formDataToJson(formData)).toEqual({
-      arr: [['John'], ['Doe']],
+      arr: [["John"], ["Doe"]],
     });
   });
 });

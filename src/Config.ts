@@ -1,4 +1,5 @@
 import convict from "convict";
+import crypto from "crypto";
 
 export const schema = {
   akismet: {
@@ -119,5 +120,7 @@ Config.validate();
 
 console.log(`(*) Local config file loaded ${filename}`);
 
-export const PrivateKey = crypto.createPrivateKey(Buffer.from(Config.get("rsaPrivateKey")));
+export const PrivateKey = crypto.createPrivateKey(
+  Buffer.from(Config.get("rsaPrivateKey")),
+);
 export const PublicKey = crypto.createPublicKey(PrivateKey);

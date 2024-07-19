@@ -6,12 +6,10 @@ export interface Parameters {
   property: string;
 }
 
-export function createDate(options: any): string {
-  options = options || {};
-
+export function createDate(format: string): string {
   const date = new Date();
 
-  switch (options["format"]) {
+  switch (format) {
     case "timestamp":
       return date.getTime().toString();
 
@@ -24,11 +22,11 @@ export function createDate(options: any): string {
   }
 }
 
-export function formDataToJson(formData: FormData): any {
-  var result: Record<string, any> = {};
-  for (var [key, value] of formData.entries()) {
-    var keys = key.replace(/\[/g, '.').replace(/\]/g, '').split('.');
-    keys.reduce(function(r, e, j) {
+export function formDataToJson(formData: FormData): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of formData.entries()) {
+    const keys = key.replace(/\[/g, ".").replace(/\]/g, "").split(".");
+    keys.reduce(function (r, e, j) {
       if (!r[e]) {
         if (keys.length - 1 == j) {
           if (Array.isArray(r)) {
@@ -57,5 +55,5 @@ export function formDataToJson(formData: FormData): any {
       return r[e];
     }, result);
   }
-  return result
+  return result;
 }
