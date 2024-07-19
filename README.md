@@ -6,10 +6,11 @@ Since [Staticman](https://staticman.net/) is not maintained anymore. The idea wa
 
 ## Usage
 
-You must specify the following URL in your form: `http://myinstance.org/entry/:service/:username/:project/:branch/:property`.
+You must specify the following URL in your form: `http://myinstance.org/entry/:version/:service/:username/:project/:branch/:property`.
 
 With the following placeholders:
 
+- version: v1
 - service: gitlab (only one for now)
 - username: your username for the wanted project
 - project: the project name

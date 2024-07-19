@@ -13,7 +13,7 @@ const app = new Elysia()
     }
   })
   .post(
-    "/entry/:service/:username/:project/:branch/:property",
+    "/entry/v1/:service/:username/:project/:branch/:property",
     async ({ params, body, set }) => {
       const sm = new Staticman();
       await sm.process(params, body);
