@@ -26,6 +26,12 @@ Generate a key for encryption:
 ssh-keygen -m PEM -t rsa -b 4096 -f key.pem
 ```
 
+To decrypt an encrypted field:
+
+```bash
+echo "$field" | base64 -d - | openssl pkeyutl -decrypt -inkey priv.pem -pkeyopt rsa_padding_mode:oaep -in -
+```
+
 ## Test
 
 A full functional test exists (with mocks):
