@@ -226,15 +226,18 @@ export default class Staticman {
       this.bodyRequest,
     );
 
-    const targetBranch = this.siteConfig.moderation
-      ? `staticman_${this.uuid}`
-      : params.branch;
-    await gl.writeFileAndSendReview(
-      filepath,
-      content,
-      commitMessage,
-      targetBranch,
-    );
+    if (this.siteConfig.moderation) {
+      await gl.writeFileAndSendReview(
+        filepath,
+        content,
+        commitMessage,
+        `staticman_${this.uuid}`,
+      );
+    } else {
+      await gl.writeFile(filepath, content, commitMessage);
+    }
+
+    return true;
   }
 
   private resolvePlaceholder(subject: string, baseObject: object): string {

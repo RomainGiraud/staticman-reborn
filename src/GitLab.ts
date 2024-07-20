@@ -73,6 +73,19 @@ export class GitLab {
       .then(() => this.createReview(commitMessage, branch, reviewBody));
   }
 
+  async writeFile(
+    path: string,
+    content: string,
+    commitMessage: string,
+  ): Promise<void> {
+    return this.commitFile(
+      path,
+      content,
+      commitMessage,
+      this.parameters.branch,
+    );
+  }
+
   private async getBranchHeadCommit(branch: string): Promise<string> {
     return this.api.Branches.show(this.repositoryId, branch).then(
       (res) => res.commit.id,
