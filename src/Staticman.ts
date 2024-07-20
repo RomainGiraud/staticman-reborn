@@ -15,16 +15,25 @@ import {
   SiteTransforms,
 } from "./SiteConfig";
 
-const gitlabToken = Config.get("gitlabToken") || "";
-const remoteConfigFile = "staticman.yaml";
+export interface StaticmanOptions {
+  gitlabToken?: string;
+  remoteConfigFile?: string;
+  siteConfig?: Static<typeof SitePropertySchema>;
+}
 
 export default class Staticman {
   private uuid: string;
   private bodyRequest = {};
   private siteConfig?: Static<typeof SitePropertySchema>;
 
-  constructor() {
+  private gitlabToken: string | null;
+  private remoteConfigFile: string;
+
+  constructor(options?: Partial<StaticmanOptions>) {
     this.uuid = crypto.randomUUID();
+    this.gitlabToken = options?.gitlabToken || Config.get("gitlabToken");
+    this.remoteConfigFile = options?.remoteConfigFile || "staticman.yaml";
+    this.siteConfig = options?.siteConfig;
   }
 
   private validateFields(
@@ -185,11 +194,18 @@ export default class Staticman {
     return [path, content];
   }
 
-  async process(params: Parameters, bodyRequest: Static<typeof BodyRequest>) {
+  async process(
+    params: Parameters,
+    bodyRequest: Static<typeof BodyRequest>,
+  ): Promise<boolean> {
     this.bodyRequest = bodyRequest;
 
-    const gl = new GitLab(gitlabToken, params);
-    const remoteConfigObject = await gl.readFile(remoteConfigFile);
+    if (this.gitlabToken === null) {
+      return false;
+    }
+
+    const gl = new GitLab(this.gitlabToken, params);
+    const remoteConfigObject = await gl.readFile(this.remoteConfigFile);
 
     let remoteConfig;
     try {
