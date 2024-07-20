@@ -1,6 +1,22 @@
 import { expect, test, describe } from "bun:test";
 import * as utils from "./Utils";
 
+describe("create current date", () => {
+  test("timestamp", () => {
+    expect(utils.createDate("timestamp")).toMatch(/^\d{13}$/);
+  });
+
+  test("timestamp-seconds", () => {
+    expect(utils.createDate("timestamp-seconds")).toMatch(/^\d{10,}$/);
+  });
+
+  test("iso8601", () => {
+    expect(utils.createDate("iso8601")).toMatch(
+      /\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/,
+    );
+  });
+});
+
 describe("convert FormData to JSON", () => {
   test("simple key", () => {
     const formData = new FormData();
