@@ -1,11 +1,13 @@
-import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
+import { expect, describe, beforeAll, afterEach, afterAll, it } from "bun:test";
 import { Parameters } from "./Utils";
 import { setupServer } from "msw/node";
 import { http, HttpResponse, PathParams } from "msw";
 import Staticman from "./Staticman";
+import { SiteConfigSchema } from "./SiteConfig";
+import { type Static } from "elysia";
 import * as transfomers from "./Transformers";
 import YAML from "yaml";
-import fs from "fs";
+import _ from "lodash";
 
 const requestParameters: Parameters = {
   service: "gitlab",
@@ -53,6 +55,25 @@ const getSHA256Hash = async (input: string) => {
   return hash;
 };
 
+const configFiles: Record<string, Static<typeof SiteConfigSchema>> = {};
+
+function registerConfigFile(
+  name: string,
+  conf: Static<typeof SiteConfigSchema>,
+) {
+  if (name in configFiles) {
+    throw new Error(`Config file ${name} already exists`);
+  }
+  configFiles[name] = conf;
+}
+
+function unregisterConfigFile(name: string) {
+  if (!(name in configFiles)) {
+    throw new Error(`Config file ${name} does not exist`);
+  }
+  delete configFiles[name];
+}
+
 const handlers = [
   http.get(
     "https://gitlab.com/api/v4/projects/:id/repository/files/:file_path",
@@ -63,14 +84,15 @@ const handlers = [
       if (
         p.get("ref") != requestParameters.branch ||
         id != `${requestParameters.username}/${requestParameters.project}` ||
-        file_path != "staticman.yaml"
+        !(file_path.toString() in configFiles)
       ) {
         return new HttpResponse("Not found", {
           status: 404,
         });
       }
 
-      let content = fs.readFileSync("staticman.test.yaml", "utf8");
+      const config = configFiles[file_path.toString()];
+      let content = YAML.stringify(config);
       content = Buffer.from(content).toString("base64");
 
       return HttpResponse.json({
@@ -179,9 +201,43 @@ const handlers = [
       const p = await request.json();
 
       const contentDecoded = Buffer.from(p.content, "base64").toString("utf8");
-      const content = YAML.parse(contentDecoded);
+      const fileExtension = file_path.toString().split(".").pop();
 
-      const regex = /^comments\/my-post\/comment-\d+\.yaml$/;
+      let content: Record<string, string> = {};
+      content["message"] = "";
+      switch (fileExtension) {
+        case "yaml":
+          content = YAML.parse(contentDecoded);
+          break;
+        case "json":
+          content = JSON.parse(contentDecoded);
+          break;
+        case "md": {
+          const lines = contentDecoded.split("\n");
+
+          if (!/^---$/.test(lines[0])) break;
+
+          let index = 1;
+          while (!/^---$/.test(lines[index])) {
+            const line = lines[index].split(": ");
+            content[line[0]] = line[1];
+            index += 1;
+          }
+          index += 1;
+
+          while (index < lines.length) {
+            content["message"] += lines[index];
+            index += 1;
+          }
+          content["message"] = content["message"].trim();
+
+          break;
+        }
+      }
+
+      const regex = new RegExp(
+        String.raw`^comments\/my-post\/comment-\d+\.${fileExtension}$`,
+      );
       if (
         !regex.test(file_path.toString()) ||
         p?.encoding != "base64" ||
@@ -362,7 +418,54 @@ afterEach(() => server.resetHandlers());
 // Clean up after the tests are finished.
 afterAll(() => server.close());
 
-test("Add a comment", async () => {
-  const sm = new Staticman();
-  expect(sm.process(requestParameters, bodyRequest)).resolves.toBeTrue();
+function createDefaultConfig(): Static<typeof SiteConfigSchema> {
+  return {
+    comments: {
+      allowedFields: ["name", "email", "message"],
+      requiredFields: ["name", "email", "message"],
+      branch: "main",
+      path: "comments/{options.slug}",
+      commitMessage: "New comment in {options.slug}",
+      filename: "comment-{@timestamp}",
+      format: "yaml",
+      generatedFields: {
+        date: {
+          type: "date",
+          format: "iso8601",
+        },
+      },
+      moderation: true,
+      name: "mysite.org",
+      transforms: {
+        name: ["rmCR", "escapeHTML"],
+        email: "encrypt",
+        message: ["rmCR", "escapeHTML"],
+      },
+    },
+  };
+}
+
+describe("Add a comment", () => {
+  it.each([
+    ["as YAML file", "staticman.yaml.yaml", { comments: { format: "yaml" } }],
+    ["as JSON file", "staticman.json.yaml", { comments: { format: "json" } }],
+    [
+      "as frontmatter of a Markdown file",
+      "staticman.md.yaml",
+      { comments: { format: { type: "md", content: "message" } } },
+    ],
+    [
+      "without moderation",
+      "staticman.yaml",
+      { comments: { moderation: false } },
+    ],
+  ])("%s", async (description, filename, format) => {
+    const conf = _.merge(createDefaultConfig(), format);
+    registerConfigFile(filename, conf);
+
+    const sm = new Staticman({ remoteConfigFile: filename });
+    expect(sm.process(requestParameters, bodyRequest)).resolves.toBeTrue();
+
+    unregisterConfigFile(filename);
+  });
 });

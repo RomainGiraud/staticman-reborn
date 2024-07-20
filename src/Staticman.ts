@@ -158,30 +158,23 @@ export default class Staticman {
         extension = "json";
         content = JSON.stringify(fields);
         break;
-      case "frontmatter":
+      case "md":
         {
           extension = "md";
-          const contentField = Object.keys(transformers).find((field) => {
-            if (!this.siteConfig || !this.siteConfig.transforms) return false;
 
-            return Array<string>()
-              .concat(
-                field in this.siteConfig.transforms
-                  ? this.siteConfig.transforms[field]
-                  : [],
-              )
-              .includes("frontmatterContent");
-          });
-
-          if (!contentField) {
-            throw new Error("NO_FRONTMATTER_CONTENT_TRANSFORM");
+          if (
+            !(
+              typeof this.siteConfig.format === "object" &&
+              "content" in this.siteConfig.format
+            )
+          ) {
+            throw new Error("NO_FRONTMATTER_CONTENT");
           }
 
-          const contentFM = fields[contentField];
-          const attributeFields = { ...fields };
-          delete attributeFields[contentField];
+          content = fields[this.siteConfig.format.content] as string;
+          delete fields[this.siteConfig.format.content];
 
-          content = `---\n${YAML.stringify(attributeFields)}---\n${contentFM}\n`;
+          content = `---\n${YAML.stringify({ ...fields })}---\n${content}\n`;
         }
         break;
       default:
