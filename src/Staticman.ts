@@ -111,7 +111,7 @@ export default class Staticman {
     }
 
     const transforms: Static<typeof SiteTransforms> =
-      this.siteConfig.transforms;
+      this.siteConfig.transforms || {};
 
     const newFields: Static<typeof BodyElement> = {};
     Object.keys(fields).forEach((field) => {
@@ -124,7 +124,7 @@ export default class Staticman {
           .forEach((transform) => {
             Object.values(transformers).forEach((tr) => {
               if (transform == tr.name) {
-                value = tr(value);
+                value = tr(value as string);
               }
             });
           });
@@ -141,12 +141,13 @@ export default class Staticman {
       throw new Error("siteConfig is undefined");
     }
 
-    const transforms: Static<typeof SiteTransforms> =
-      this.siteConfig.transforms;
-
     let extension: string;
     let content: string;
-    switch (this.siteConfig.format) {
+    const format =
+      typeof this.siteConfig.format === "string"
+        ? this.siteConfig.format
+        : this.siteConfig.format.type;
+    switch (format) {
       case "yml":
       case "yaml":
         // http://yaml.org/faq.html
@@ -160,9 +161,15 @@ export default class Staticman {
       case "frontmatter":
         {
           extension = "md";
-          const contentField = Object.keys(transforms).find((field) => {
+          const contentField = Object.keys(transformers).find((field) => {
+            if (!this.siteConfig || !this.siteConfig.transforms) return false;
+
             return Array<string>()
-              .concat(transforms[field])
+              .concat(
+                field in this.siteConfig.transforms
+                  ? this.siteConfig.transforms[field]
+                  : [],
+              )
               .includes("frontmatterContent");
           });
 

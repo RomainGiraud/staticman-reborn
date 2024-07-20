@@ -364,5 +364,5 @@ afterAll(() => server.close());
 
 test("Add a comment", async () => {
   const sm = new Staticman();
-  expect(sm.process(requestParameters, bodyRequest)).resolves.toBeUndefined();
+  expect(sm.process(requestParameters, bodyRequest)).resolves.toBeTrue();
 });

@@ -9,7 +9,10 @@ export const ParametersRequest = t.Object({
   property: t.String(),
 });
 
-export const BodyElement = t.Record(t.String(), t.String());
+export const BodyElement = t.Record(
+  t.String(),
+  t.Union([t.String(), t.Number()]),
+);
 
 export const BodyRequest = t.Object({
   fields: BodyElement,
@@ -37,13 +40,16 @@ export const SitePropertySchema = t.Object({
   branch: t.String(),
   commitMessage: t.String(),
   filename: t.String(),
-  format: t.String(),
+  format: t.Union([
+    t.String(),
+    t.Object({ type: t.String(), content: t.String() }),
+  ]),
   generatedFields: SiteGeneratedFields,
   moderation: t.Boolean(),
   name: t.String(),
   path: t.String(),
   requiredFields: t.Array(t.String()),
-  transforms: SiteTransforms,
+  transforms: t.Optional(SiteTransforms),
 });
 
 export const SiteConfigSchema = t.Record(t.String(), SitePropertySchema);
