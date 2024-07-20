@@ -215,6 +215,9 @@ export default class Staticman {
     fields = this.applyTransforms(fields);
     if ("parent" in bodyRequest["options"]) {
       fields["parent"] = bodyRequest["options"]["parent"];
+      if (!isNaN(Number(fields["parent"]))) {
+        fields["parent"] = Number(fields["parent"]);
+      }
     }
     const [filepath, content] = this.generateFile(fields);
 
