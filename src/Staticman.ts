@@ -1,11 +1,12 @@
 import { GitLab } from "./GitLab";
-import { Parameters, createDate } from "./Utils";
+import { GitHub } from "./GitHub";
+import { GitService } from "./GitService";
+import { createDate } from "./Utils";
 import objectPath from "object-path";
 import moment from "moment";
 import YAML from "yaml";
 import { type Static } from "elysia";
 
-import { Config } from "./Config";
 import * as transformers from "./Transformers";
 import {
   ParseRemoteConfig,
@@ -13,10 +14,10 @@ import {
   BodyRequest,
   BodyElement,
   SiteTransforms,
+  Parameters,
 } from "./SiteConfig";
 
 export interface StaticmanOptions {
-  gitlabToken?: string;
   remoteConfigFile?: string;
   siteConfig?: Static<typeof SitePropertySchema>;
 }
@@ -26,14 +27,25 @@ export default class Staticman {
   private bodyRequest = {};
   private siteConfig?: Static<typeof SitePropertySchema>;
 
-  private gitlabToken: string | null;
   private remoteConfigFile: string;
 
   constructor(options?: Partial<StaticmanOptions>) {
     this.uuid = crypto.randomUUID();
-    this.gitlabToken = options?.gitlabToken || Config.get("gitlabToken");
     this.remoteConfigFile = options?.remoteConfigFile || "staticman.yaml";
     this.siteConfig = options?.siteConfig;
+  }
+
+  private createGitService(params: Parameters): GitService {
+    const factories = {
+      gitlab: (p: Parameters) => new GitLab(p),
+      github: (p: Parameters) => new GitHub(p),
+    };
+
+    if (!factories[params.service]) {
+      throw new Error(`Unsupported service: ${params.service}`);
+    }
+
+    return factories[params.service](params);
   }
 
   private validateFields(
@@ -162,12 +174,10 @@ export default class Staticman {
         {
           extension = "md";
 
-          if (
-            !(
-              typeof this.siteConfig.format === "object" &&
-              "content" in this.siteConfig.format
-            )
-          ) {
+          if (!(
+            typeof this.siteConfig.format === "object" &&
+            "content" in this.siteConfig.format
+          )) {
             throw new Error("NO_FRONTMATTER_CONTENT");
           }
 
@@ -200,12 +210,12 @@ export default class Staticman {
   ): Promise<boolean> {
     this.bodyRequest = bodyRequest;
 
-    if (this.gitlabToken === null) {
+    const git = this.createGitService(params);
+    if (git === null) {
       return false;
     }
 
-    const gl = new GitLab(this.gitlabToken, params);
-    const remoteConfigObject = await gl.readFile(this.remoteConfigFile);
+    const remoteConfigObject = await git.readFile(this.remoteConfigFile);
 
     let remoteConfig;
     try {
@@ -243,14 +253,14 @@ export default class Staticman {
     );
 
     if (this.siteConfig.moderation) {
-      await gl.writeFileAndSendReview(
+      await git.writeFileAndSendReview(
         filepath,
         content,
         commitMessage,
         `staticman_${this.uuid}`,
       );
     } else {
-      await gl.writeFile(filepath, content, commitMessage);
+      await git.writeFile(filepath, content, commitMessage);
     }
 
     return true;

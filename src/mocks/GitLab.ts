@@ -1,26 +1,30 @@
 import { http, HttpResponse, PathParams } from "msw";
 import { type Static } from "elysia";
 import YAML from "yaml";
-import { Parameters } from "../Utils";
-import { SiteConfigSchema } from "../SiteConfig";
+import {
+  BodyRequest,
+  Parameters,
+  Service,
+  SiteConfigSchema,
+} from "../SiteConfig";
 import * as transfomers from "../Transformers";
 
 export const requestParameters: Parameters = {
-  service: "gitlab",
+  service: Service.GitLab,
   username: "user",
   project: "test",
   branch: "main",
   property: "comments",
 };
 
-export const bodyRequest = {
+export const bodyRequest: Static<typeof BodyRequest> = {
   fields: {
     name: "Romain",
     email: "romain@example.org",
     message: "Hello, everything works fine!",
   },
   options: {
-    redirect: "http://google.com",
+    redirect: "http://google.com/",
     parent: "123",
     slug: "my-post",
   },
@@ -80,14 +84,14 @@ export const handlers = [
       if (
         p.get("ref") != requestParameters.branch ||
         id != `${requestParameters.username}/${requestParameters.project}` ||
-        !(file_path.toString() in configFiles)
+        !(String(file_path) in configFiles)
       ) {
         return new HttpResponse("Not found", {
           status: 404,
         });
       }
 
-      const config = configFiles[file_path.toString()];
+      const config = configFiles[String(file_path)];
       let content = YAML.stringify(config);
       content = Buffer.from(content).toString("base64");
 
@@ -197,7 +201,7 @@ export const handlers = [
       const p = await request.json();
 
       const contentDecoded = Buffer.from(p.content, "base64").toString("utf8");
-      const fileExtension = file_path.toString().split(".").pop();
+      const fileExtension = String(file_path).split(".").pop();
 
       let content: Record<string, string> = {};
       content["message"] = "";
@@ -235,7 +239,7 @@ export const handlers = [
         String.raw`^comments\/my-post\/comment-\d+\.${fileExtension}$`,
       );
       if (
-        !regex.test(file_path.toString()) ||
+        !regex.test(String(file_path)) ||
         p?.encoding != "base64" ||
         p?.commit_message != "New comment in my-post" ||
         content?.name != bodyRequest.fields.name ||

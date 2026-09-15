@@ -1,11 +1,3 @@
-export interface Parameters {
-  service: string;
-  username: string;
-  project: string;
-  branch: string;
-  property: string;
-}
-
 export function createDate(format: string): string {
   const date = new Date();
 

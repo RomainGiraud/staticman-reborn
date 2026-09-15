@@ -15,13 +15,13 @@ export const app = new Elysia()
   })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",
-    async ({ params, body, set }) => {
+    async ({ params, body, redirect }) => {
       const sm = new Staticman();
       await sm.process(params, body);
 
       const options = body["options"];
       if ("redirect" in options) {
-        set.redirect = String(options["redirect"]);
+        return redirect(String(options["redirect"]));
       }
     },
     {
@@ -30,6 +30,7 @@ export const app = new Elysia()
     },
   );
 
+/* v8 ignore start */
 if (import.meta.main) {
   app.listen(Config.get("port"));
 
@@ -37,3 +38,4 @@ if (import.meta.main) {
     `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
   );
 }
+/* v8 ignore end */

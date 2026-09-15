@@ -7,10 +7,13 @@ import {
   afterAll,
 } from "bun:test";
 import { setupServer } from "msw/node";
+import { type Static } from "elysia";
 import { app } from "./index";
+import { BodyRequest } from "./SiteConfig";
 import * as gitlabMocks from "./mocks/GitLab";
+import * as githubMocks from "./mocks/GitHub";
 
-const server = setupServer(...gitlabMocks.handlers);
+const server = setupServer(...gitlabMocks.handlers, ...githubMocks.handlers);
 
 beforeAll(() =>
   server.listen({
@@ -22,46 +25,54 @@ afterEach(() => server.resetHandlers());
 
 afterAll(() => server.close());
 
+function appendGroup(
+  formData: FormData,
+  group: string,
+  values: Record<string, unknown>,
+): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) {
+      formData.append(`${group}[${key}]`, String(value));
+    }
+  }
+}
+
 // Mirrors the field names used by post.sample.html, so this reproduces
 // exactly what a browser sends when a visitor submits the comment form.
-function buildFormData(bodyRequest: typeof gitlabMocks.bodyRequest): FormData {
+function buildFormData(bodyRequest: Static<typeof BodyRequest>): FormData {
   const formData = new FormData();
-  formData.append("options[redirect]", bodyRequest.options.redirect);
-  formData.append("options[parent]", bodyRequest.options.parent);
-  formData.append("options[slug]", bodyRequest.options.slug);
-  formData.append("fields[name]", bodyRequest.fields.name);
-  formData.append("fields[email]", bodyRequest.fields.email);
-  formData.append("fields[message]", bodyRequest.fields.message);
+  appendGroup(formData, "options", bodyRequest.options);
+  appendGroup(formData, "fields", bodyRequest.fields);
   return formData;
 }
 
-describe.each([["GitLab", gitlabMocks]])(
-  "Submitting the comment form (%s)",
-  (_service, mocks) => {
-    test("redirects on success", async () => {
-      mocks.registerConfigFile("staticman.yaml", mocks.createDefaultConfig());
+describe.each([
+  ["GitLab", gitlabMocks],
+  ["GitHub", githubMocks],
+])("Submitting the comment form (%s)", (_service, mock) => {
+  test("redirects on success", async () => {
+    mock.registerConfigFile("staticman.yaml", mock.createDefaultConfig());
 
-      const { service, username, project, branch, property } =
-        mocks.requestParameters;
-      const response = await app.handle(
-        new Request(
-          `http://localhost/entry/v1/${service}/${username}/${project}/${branch}/${property}`,
-          {
-            method: "POST",
-            body: buildFormData(mocks.bodyRequest),
-          },
-        ),
-      );
+    const { service, username, project, branch, property } =
+      mock.requestParameters;
+    const response = await app.handle(
+      new Request(
+        `http://localhost/entry/v1/${service}/${username}/${project}/${branch}/${property}`,
+        {
+          method: "POST",
+          body: buildFormData(mock.bodyRequest),
+        },
+      ),
+    );
 
-      mocks.unregisterConfigFile("staticman.yaml");
+    mock.unregisterConfigFile("staticman.yaml");
 
-      expect(response.status).toBe(302);
-      expect(response.headers.get("location")).toBe(
-        mocks.bodyRequest.options.redirect,
-      );
-    });
-  },
-);
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      String(mock.bodyRequest.options.redirect),
+    );
+  });
+});
 
 describe("Invalid requests", () => {
   test("returns an error when the body does not match the schema", async () => {

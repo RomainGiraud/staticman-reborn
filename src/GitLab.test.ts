@@ -1,8 +1,8 @@
 import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
 import { GitLab } from "./GitLab";
-import { Parameters } from "./Utils";
 import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { Parameters, Service } from "./SiteConfig";
 
 const handlers = [
   http.get(
@@ -41,13 +41,13 @@ afterAll(() => server.close());
 
 test("Read a file", async () => {
   const params: Parameters = {
-    service: "gitlab",
+    service: Service.GitLab,
     username: "myusername",
     project: "myproject",
     branch: "mybranch",
     property: "myproperty",
   };
-  const gl = new GitLab("personaltoken", params);
+  const gl = new GitLab(params);
   expect(gl.readFile("src/config.json")).resolves.toEqual({
     name: "Python",
     year_launched: 1991,

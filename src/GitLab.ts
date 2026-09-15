@@ -1,15 +1,23 @@
 import { Gitlab as GitlabRest } from "@gitbeaker/rest";
 import { GitError } from "./BaseError";
 import YAML from "yaml";
-import { Parameters } from "./Utils";
+import { Parameters } from "./SiteConfig";
+import { GitService } from "./GitService";
+import { Config } from "./Config";
 
-export class GitLab {
+export class GitLab implements GitService {
   private api: InstanceType<typeof GitlabRest>;
   private parameters: Parameters;
   private repositoryId: string;
 
-  constructor(token: string, parameters: Parameters) {
+  constructor(parameters: Parameters) {
     this.parameters = parameters;
+
+    const token = Config.get("gitlabToken");
+    if (!token) {
+      throw new Error("GitLab token is not set");
+    }
+
     this.api = new GitlabRest({
       host: "https://gitlab.com",
       token,

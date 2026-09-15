@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@gitbeaker/rest": "^40.0.3",
+    "@octokit/rest": "^22.0.1",
     "@types/lodash": "^4.17.7",
     "convict": "^6.2.4",
     "crypto": "^1.0.1",
