@@ -2,8 +2,9 @@ import { Elysia } from "elysia";
 import Staticman from "./Staticman";
 import { formDataToJson } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
+import { Config } from "./Config";
 
-const app = new Elysia()
+export const app = new Elysia()
   .onError(({ error }) => {
     return { error: error.toString() };
   })
@@ -27,9 +28,12 @@ const app = new Elysia()
       body: BodyRequest,
       params: ParametersRequest,
     },
-  )
-  .listen(3000);
+  );
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-);
+if (import.meta.main) {
+  app.listen(Config.get("port"));
+
+  console.log(
+    `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+  );
+}
