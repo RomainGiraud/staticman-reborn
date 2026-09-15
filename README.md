@@ -11,7 +11,7 @@ You must specify the following URL in your form: `http://myinstance.org/entry/:v
 With the following placeholders:
 
 - version: v1
-- service: gitlab (only one for now)
+- service: `gitlab` or `github`
 - username: your username for the wanted project
 - project: the project name
 - branch: the target branch

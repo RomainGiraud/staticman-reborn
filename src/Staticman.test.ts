@@ -2,16 +2,10 @@ import { expect, describe, beforeAll, afterEach, afterAll, it } from "bun:test";
 import { setupServer } from "msw/node";
 import Staticman from "./Staticman";
 import _ from "lodash";
-import {
-  handlers,
-  requestParameters,
-  bodyRequest,
-  registerConfigFile,
-  unregisterConfigFile,
-  createDefaultConfig,
-} from "./mocks/gitlab";
+import * as gitlabMocks from "./mocks/gitlab";
+import * as githubMocks from "./mocks/github";
 
-const server = setupServer(...handlers);
+const server = setupServer(...gitlabMocks.handlers, ...githubMocks.handlers);
 
 // Establish API mocking before all tests.
 beforeAll(() =>
@@ -27,7 +21,10 @@ afterEach(() => server.resetHandlers());
 // Clean up after the tests are finished.
 afterAll(() => server.close());
 
-describe("Add a comment", () => {
+describe.each([
+  ["GitLab", gitlabMocks],
+  ["GitHub", githubMocks],
+])("Add a comment (%s)", (_service, mocks) => {
   it.each([
     ["as YAML file", "staticman.yaml.yaml", { comments: { format: "yaml" } }],
     ["as JSON file", "staticman.json.yaml", { comments: { format: "json" } }],
@@ -42,12 +39,14 @@ describe("Add a comment", () => {
       { comments: { moderation: false } },
     ],
   ])("%s", async (description, filename, format) => {
-    const conf = _.merge(createDefaultConfig(), format);
-    registerConfigFile(filename, conf);
+    const conf = _.merge(mocks.createDefaultConfig(), format);
+    mocks.registerConfigFile(filename, conf);
 
     const sm = new Staticman({ remoteConfigFile: filename });
-    expect(sm.process(requestParameters, bodyRequest)).resolves.toBeTrue();
+    expect(
+      sm.process(mocks.requestParameters, mocks.bodyRequest),
+    ).resolves.toBeTrue();
 
-    unregisterConfigFile(filename);
+    mocks.unregisterConfigFile(filename);
   });
 });

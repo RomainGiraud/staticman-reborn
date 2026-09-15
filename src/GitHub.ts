@@ -1,42 +1,50 @@
-import { Gitlab as GitlabRest } from "@gitbeaker/rest";
+import { Octokit } from "@octokit/rest";
 import { GitError } from "./BaseError";
 import YAML from "yaml";
 import { Parameters } from "./Utils";
 import { GitService } from "./GitService";
 
-export class GitLab implements GitService {
-  private api: InstanceType<typeof GitlabRest>;
+export class GitHub implements GitService {
+  private api: Octokit;
   private parameters: Parameters;
-  private repositoryId: string;
+  private owner: string;
+  private repo: string;
 
   constructor(token: string, parameters: Parameters) {
     this.parameters = parameters;
-    this.api = new GitlabRest({
-      host: "https://gitlab.com",
-      token,
+    this.api = new Octokit({
+      auth: token,
     });
 
-    this.repositoryId = `${this.parameters.username}/${this.parameters.project}`;
+    this.owner = this.parameters.username;
+    this.repo = this.parameters.project;
   }
 
   async readFile(path: string): Promise<unknown> {
     const extension = path.split(".").pop();
-    const res = await this.api.RepositoryFiles.show(
-      this.repositoryId,
+    const res = await this.api.rest.repos.getContent({
+      owner: this.owner,
+      repo: this.repo,
       path,
-      this.parameters.branch,
-    );
+      ref: this.parameters.branch,
+    });
+
+    if (Array.isArray(res.data) || !("content" in res.data)) {
+      throw new GitError("GITHUB_READING_FILE", {
+        err: `${path} is not a file`,
+      });
+    }
 
     let content;
-    if (res.encoding === "base64") {
+    if (res.data.encoding === "base64") {
       try {
-        content = Buffer.from(res.content, "base64").toString();
+        content = Buffer.from(res.data.content, "base64").toString();
       } catch (err) {
-        throw new GitError("GITLAB_READING_FILE", { cause: err });
+        throw new GitError("GITHUB_READING_FILE", { cause: err });
       }
     } else {
-      throw new GitError("GITLAB_READING_FILE", {
-        err: `Unknown encoding ${res.encoding}`,
+      throw new GitError("GITHUB_READING_FILE", {
+        err: `Unknown encoding ${res.data.encoding}`,
       });
     }
 
@@ -88,15 +96,20 @@ export class GitLab implements GitService {
   }
 
   private async getBranchHeadCommit(branch: string): Promise<string> {
-    return this.api.Branches.show(this.repositoryId, branch).then(
-      (res) => res.commit.id,
-    );
+    return this.api.rest.repos
+      .getBranch({ owner: this.owner, repo: this.repo, branch })
+      .then((res) => res.data.commit.sha);
   }
 
   private async createBranch(branch: string, sha: string): Promise<void> {
-    return this.api.Branches.create(this.repositoryId, branch, sha).then(
-      () => {},
-    );
+    return this.api.rest.git
+      .createRef({
+        owner: this.owner,
+        repo: this.repo,
+        ref: `refs/heads/${branch}`,
+        sha,
+      })
+      .then(() => {});
   }
 
   private async commitFile(
@@ -105,14 +118,16 @@ export class GitLab implements GitService {
     commitMessage: string,
     branch: string,
   ): Promise<void> {
-    return this.api.RepositoryFiles.create(
-      this.repositoryId,
-      path,
-      branch,
-      Buffer.from(content).toString("base64"),
-      commitMessage,
-      { encoding: "base64" },
-    ).then(() => {});
+    return this.api.rest.repos
+      .createOrUpdateFileContents({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+        message: commitMessage,
+        content: Buffer.from(content).toString("base64"),
+        branch,
+      })
+      .then(() => {});
   }
 
   private async createReview(
@@ -120,15 +135,15 @@ export class GitLab implements GitService {
     branch: string,
     reviewBody: string,
   ): Promise<void> {
-    return this.api.MergeRequests.create(
-      this.repositoryId,
-      branch,
-      this.parameters.branch,
-      reviewTitle,
-      {
-        description: reviewBody,
-        removeSourceBranch: true,
-      },
-    ).then(() => {});
+    return this.api.rest.pulls
+      .create({
+        owner: this.owner,
+        repo: this.repo,
+        title: reviewTitle,
+        head: branch,
+        base: this.parameters.branch,
+        body: reviewBody,
+      })
+      .then(() => {});
   }
 }

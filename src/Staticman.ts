@@ -1,4 +1,6 @@
 import { GitLab } from "./GitLab";
+import { GitHub } from "./GitHub";
+import { GitService } from "./GitService";
 import { Parameters, createDate } from "./Utils";
 import objectPath from "object-path";
 import moment from "moment";
@@ -17,6 +19,7 @@ import {
 
 export interface StaticmanOptions {
   gitlabToken?: string;
+  githubToken?: string;
   remoteConfigFile?: string;
   siteConfig?: Static<typeof SitePropertySchema>;
 }
@@ -27,13 +30,28 @@ export default class Staticman {
   private siteConfig?: Static<typeof SitePropertySchema>;
 
   private gitlabToken: string | null;
+  private githubToken: string | null;
   private remoteConfigFile: string;
 
   constructor(options?: Partial<StaticmanOptions>) {
     this.uuid = crypto.randomUUID();
     this.gitlabToken = options?.gitlabToken || Config.get("gitlabToken");
+    this.githubToken = options?.githubToken || Config.get("githubToken");
     this.remoteConfigFile = options?.remoteConfigFile || "staticman.yaml";
     this.siteConfig = options?.siteConfig;
+  }
+
+  private createGitService(params: Parameters): GitService | null {
+    switch (params.service) {
+      case "gitlab":
+        return this.gitlabToken ? new GitLab(this.gitlabToken, params) : null;
+
+      case "github":
+        return this.githubToken ? new GitHub(this.githubToken, params) : null;
+
+      default:
+        throw new Error(`Unsupported service: ${params.service}`);
+    }
   }
 
   private validateFields(
@@ -200,12 +218,12 @@ export default class Staticman {
   ): Promise<boolean> {
     this.bodyRequest = bodyRequest;
 
-    if (this.gitlabToken === null) {
+    const git = this.createGitService(params);
+    if (git === null) {
       return false;
     }
 
-    const gl = new GitLab(this.gitlabToken, params);
-    const remoteConfigObject = await gl.readFile(this.remoteConfigFile);
+    const remoteConfigObject = await git.readFile(this.remoteConfigFile);
 
     let remoteConfig;
     try {
@@ -243,14 +261,14 @@ export default class Staticman {
     );
 
     if (this.siteConfig.moderation) {
-      await gl.writeFileAndSendReview(
+      await git.writeFileAndSendReview(
         filepath,
         content,
         commitMessage,
         `staticman_${this.uuid}`,
       );
     } else {
-      await gl.writeFile(filepath, content, commitMessage);
+      await git.writeFile(filepath, content, commitMessage);
     }
 
     return true;
