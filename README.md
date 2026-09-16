@@ -49,4 +49,15 @@ To start the development server run:
 bun run dev
 ```
 
+## Docker
+
+1. Copy `config.sample.json` to `config.production.json` and fill in your GitLab/GitHub token(s) and RSA private key (see above for generating one).
+2. Run:
+
+   ```bash
+   docker compose up --build
+   ```
+
+The service listens on port 3000.
+
 ## Differences
