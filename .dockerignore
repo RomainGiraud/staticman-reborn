@@ -1,0 +1,12 @@
+node_modules
+.git
+.husky
+.eslintcache
+*.pem
+config.json
+config.development.json
+config.production.json
+config.test.json
+staticman.yaml
+coverage
+*.log

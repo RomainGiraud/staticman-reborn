@@ -1,0 +1,10 @@
+services:
+  staticman:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./config.production.json:/app/config.production.json:ro
+    restart: unless-stopped
