@@ -1,105 +1,44 @@
 import { Gitlab as GitlabRest } from "@gitbeaker/rest";
-import { GitError } from "./BaseError";
-import YAML from "yaml";
 import { Parameters } from "./Utils";
-import { GitService } from "./GitService";
+import { BaseGitService, RemoteFile } from "./BaseGitService";
 
-export class GitLab implements GitService {
+export class GitLab extends BaseGitService {
   private api: InstanceType<typeof GitlabRest>;
-  private parameters: Parameters;
   private repositoryId: string;
 
   constructor(token: string, parameters: Parameters) {
-    this.parameters = parameters;
+    super(parameters, "GITLAB");
     this.api = new GitlabRest({
       host: "https://gitlab.com",
       token,
     });
 
-    this.repositoryId = `${this.parameters.username}/${this.parameters.project}`;
+    this.repositoryId = `${parameters.username}/${parameters.project}`;
   }
 
-  async readFile(path: string): Promise<unknown> {
-    const extension = path.split(".").pop();
+  protected async fetchFile(path: string): Promise<RemoteFile> {
     const res = await this.api.RepositoryFiles.show(
       this.repositoryId,
       path,
       this.parameters.branch,
     );
 
-    let content;
-    if (res.encoding === "base64") {
-      try {
-        content = Buffer.from(res.content, "base64").toString();
-      } catch (err) {
-        throw new GitError("GITLAB_READING_FILE", { cause: err });
-      }
-    } else {
-      throw new GitError("GITLAB_READING_FILE", {
-        err: `Unknown encoding ${res.encoding}`,
-      });
-    }
-
-    try {
-      switch (extension) {
-        case "yml":
-        case "yaml":
-          content = YAML.parse(content);
-          break;
-
-        case "json":
-          content = JSON.parse(content);
-          break;
-
-        default:
-          throw new Error(`Unknown extension ${extension}`);
-      }
-    } catch (err) {
-      throw new GitError("PARSING_ERROR", { cause: err });
-    }
-
-    return content;
+    return { content: res.content, encoding: res.encoding };
   }
 
-  async writeFileAndSendReview(
-    path: string,
-    content: string,
-    commitMessage: string,
-    branch: string,
-    reviewBody: string = "",
-  ): Promise<void> {
-    return this.getBranchHeadCommit(this.parameters.branch)
-      .then((sha) => this.createBranch(branch, sha))
-      .then(() => this.commitFile(path, content, commitMessage, branch))
-      .then(() => this.createReview(commitMessage, branch, reviewBody));
-  }
-
-  async writeFile(
-    path: string,
-    content: string,
-    commitMessage: string,
-  ): Promise<void> {
-    return this.commitFile(
-      path,
-      content,
-      commitMessage,
-      this.parameters.branch,
-    );
-  }
-
-  private async getBranchHeadCommit(branch: string): Promise<string> {
+  protected async getBranchHeadCommit(branch: string): Promise<string> {
     return this.api.Branches.show(this.repositoryId, branch).then(
       (res) => res.commit.id,
     );
   }
 
-  private async createBranch(branch: string, sha: string): Promise<void> {
+  protected async createBranch(branch: string, sha: string): Promise<void> {
     return this.api.Branches.create(this.repositoryId, branch, sha).then(
       () => {},
     );
   }
 
-  private async commitFile(
+  protected async commitFile(
     path: string,
     content: string,
     commitMessage: string,
@@ -115,7 +54,7 @@ export class GitLab implements GitService {
     ).then(() => {});
   }
 
-  private async createReview(
+  protected async createReview(
     reviewTitle: string,
     branch: string,
     reviewBody: string,
