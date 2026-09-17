@@ -35,7 +35,13 @@ echo "$field" | base64 -d - | openssl pkeyutl -decrypt -inkey priv.pem -pkeyopt 
 
 ## Test
 
-A full functional test exists (with mocks):
+Tests need a local `config.test.json` with a throwaway RSA key (not a real secret, just needs to be a valid key). Generate one once:
+
+```bash
+bun run scripts/generate-test-config.ts
+```
+
+Then run the full functional test suite (with mocks):
 
 ```bash
 bun test
