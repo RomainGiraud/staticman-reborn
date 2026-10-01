@@ -28,6 +28,9 @@ export const app = new Elysia()
     if (!body["options"]) body["options"] = {};
     return;
   })
+  .get("/health", () => {
+    return { status: "ok" };
+  })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",
     async ({ params, body, redirect }) => {
