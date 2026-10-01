@@ -1,7 +1,8 @@
 services:
   staticman:
     # build: .
-    image: staticman-reborn:latest
+    # image: staticman-reborn:latest
+    image: ghcr.io/romaingiraud/staticman-reborn:latest
     ports:
       - "3000:3000"
     environment:

@@ -61,9 +61,9 @@ bun run dev
 2. Run:
 
    ```bash
-   docker compose up --build
+   docker compose up -d
    ```
 
-The service listens on port 3000.
+This pulls the prebuilt image from `ghcr.io/romaingiraud/staticman-reborn`. The service listens on port 3000.
 
 ## Differences
