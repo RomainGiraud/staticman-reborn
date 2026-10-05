@@ -1,5 +1,6 @@
 import convict from "convict";
 import crypto from "crypto";
+import { logger, configureLogger } from "./Logger";
 
 export const schema = {
   akismet: {
@@ -118,7 +119,8 @@ const filename = `config.${Config.get("env")}.json`;
 Config.loadFile(filename);
 Config.validate();
 
-console.log(`(*) Local config file loaded ${filename}`);
+configureLogger(Config.get("env"));
+logger.info(`(*) Local config file loaded: ${filename}`);
 
 export const PrivateKey = crypto.createPrivateKey(
   Buffer.from(Config.get("rsaPrivateKey")),

@@ -2,6 +2,7 @@ import { Elysia } from "elysia";
 import Staticman from "./Staticman";
 import { expandSubmittedData } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
+import { logger } from "./Logger";
 import { Config } from "./Config";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -9,7 +10,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const app = new Elysia()
-  .onError(({ error }) => {
+  .onError(({ error, request }) => {
+    logger.debug(`Invalid request "${request.url}": ${error.toString()}`);
     return { error };
   })
   .onTransform(({ body }) => {
@@ -33,7 +35,11 @@ export const app = new Elysia()
   })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",
-    async ({ params, body, redirect }) => {
+    async ({ params, body, redirect, request }) => {
+      logger.debug(`request: ${request.url}`);
+      logger.debug(`params: ${JSON.stringify(params)}`);
+      logger.debug(`body: ${JSON.stringify(body)}`);
+
       const sm = new Staticman();
       await sm.process(params, body);
 

@@ -16,6 +16,7 @@ import {
   SiteTransforms,
   type Parameters,
 } from "./SiteConfig";
+import { logger } from "./Logger";
 
 export interface StaticmanOptions {
   remoteConfigFile?: string;
@@ -218,9 +219,6 @@ export default class Staticman {
     this.bodyRequest = bodyRequest;
 
     const git = this.createGitService(params);
-    if (git === null) {
-      return false;
-    }
 
     const remoteConfigObject = await git.readFile(this.remoteConfigFile);
 
@@ -235,12 +233,12 @@ export default class Staticman {
 
     const prop = params.property;
     if (!(prop in remoteConfig)) {
-      throw new Error("Server is under maintainance");
+      throw new Error("Main property not found in remote config file.");
     }
 
     this.siteConfig = remoteConfig[prop];
     if (this.siteConfig?.branch !== params.branch) {
-      throw new Error("branch name does not match.");
+      throw new Error("Branch name does not match.");
     }
 
     let fields = bodyRequest.fields;
@@ -255,6 +253,7 @@ export default class Staticman {
       }
     }
     const [filepath, content] = this.generateFile(fields);
+    logger.debug(`filepath: ${filepath}`);
 
     const commitMessage = this.resolvePlaceholder(
       this.siteConfig.commitMessage,
