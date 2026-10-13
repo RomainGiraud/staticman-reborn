@@ -1,4 +1,4 @@
-import { Static, t } from "elysia";
+import { type Static, t } from "elysia";
 import { Value } from "@sinclair/typebox/value";
 
 export enum Service {
@@ -16,10 +16,7 @@ export const ParametersRequest = t.Object({
 
 export type Parameters = Static<typeof ParametersRequest>;
 
-export const BodyElement = t.Record(
-  t.String(),
-  t.Union([t.String(), t.Number()]),
-);
+export const BodyElement = t.Any();
 
 export const BodyRequest = t.Object({
   fields: BodyElement,

@@ -1,25 +1,21 @@
 import { expect, describe, beforeAll, afterEach, afterAll, it } from "bun:test";
-import { setupServer } from "msw/node";
 import Staticman from "./Staticman";
 import _ from "lodash";
+import { setupServer } from "./mocks/Bun";
 import * as gitlabMocks from "./mocks/GitLab";
 import * as githubMocks from "./mocks/GitHub";
 
 const server = setupServer(...gitlabMocks.handlers, ...githubMocks.handlers);
 
 // Establish API mocking before all tests.
-beforeAll(() =>
-  server.listen({
-    onUnhandledRequest: "error",
-  }),
-);
+beforeAll(() => server.enable());
 
 // Reset any request handlers that we may add during the tests,
 // so they don't affect other tests.
 afterEach(() => server.resetHandlers());
 
 // Clean up after the tests are finished.
-afterAll(() => server.close());
+afterAll(() => server.disable());
 
 describe.each([
   ["GitLab", gitlabMocks],

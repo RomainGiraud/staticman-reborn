@@ -1,17 +1,32 @@
 import { Elysia } from "elysia";
 import Staticman from "./Staticman";
-import { formDataToJson } from "./Utils";
+import { expandSubmittedData } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
 import { Config } from "./Config";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export const app = new Elysia()
   .onError(({ error }) => {
-    return { error: error.toString() };
+    return { error };
   })
-  .onParse(async ({ request, contentType }) => {
-    if (contentType === "multipart/form-data") {
-      return formDataToJson(await request.formData());
+  .onTransform(({ body }) => {
+    if (!isRecord(body)) {
+      return;
     }
+
+    const newBody = expandSubmittedData(body);
+    for (const key in body) {
+      delete body[key];
+    }
+    for (const key in newBody) {
+      body[key] = newBody[key];
+    }
+    if (!body["fields"]) body["fields"] = {};
+    if (!body["options"]) body["options"] = {};
+    return;
   })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",

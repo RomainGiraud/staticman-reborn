@@ -1,7 +1,7 @@
 import { GitError } from "./BaseError";
 import YAML from "yaml";
-import { Parameters } from "./SiteConfig";
-import { GitService } from "./GitService";
+import { type Parameters } from "./SiteConfig";
+import { type GitService } from "./GitService";
 
 export interface RemoteFile {
   content: string;

@@ -1,6 +1,6 @@
 import { GitLab } from "./GitLab";
 import { GitHub } from "./GitHub";
-import { GitService } from "./GitService";
+import { type GitService } from "./GitService";
 import { createDate } from "./Utils";
 import objectPath from "object-path";
 import moment from "moment";
@@ -14,7 +14,7 @@ import {
   BodyRequest,
   BodyElement,
   SiteTransforms,
-  Parameters,
+  type Parameters,
 } from "./SiteConfig";
 
 export interface StaticmanOptions {
@@ -61,6 +61,8 @@ export default class Staticman {
       const value = fields[field];
       if (!allowed.includes(field as string)) return;
 
+      if (value === undefined) return;
+
       newFields[field] = value;
     });
 
@@ -86,6 +88,7 @@ export default class Staticman {
 
     Object.keys(generatedFields).forEach((field) => {
       const generatedField = generatedFields[field];
+      if (generatedField === undefined) return;
 
       switch (generatedField.type) {
         case "date":
@@ -128,9 +131,13 @@ export default class Staticman {
     const newFields: Static<typeof BodyElement> = {};
     Object.keys(fields).forEach((field) => {
       let value = fields[field];
+      if (value === undefined) {
+        return;
+      }
 
       if (field in transforms) {
-        const fieldTransforms = transforms[field];
+        let fieldTransforms = transforms[field];
+        if (fieldTransforms === undefined) fieldTransforms = [];
         Array<string>()
           .concat(fieldTransforms)
           .forEach((transform) => {
@@ -221,7 +228,9 @@ export default class Staticman {
     try {
       remoteConfig = ParseRemoteConfig(remoteConfigObject);
     } catch (error) {
-      throw new Error(`Remote config file is invalid: ${error}`);
+      throw new Error(`Remote config file is invalid: ${error}`, {
+        cause: error,
+      });
     }
 
     const prop = params.property;
@@ -230,7 +239,7 @@ export default class Staticman {
     }
 
     this.siteConfig = remoteConfig[prop];
-    if (this.siteConfig.branch !== params.branch) {
+    if (this.siteConfig?.branch !== params.branch) {
       throw new Error("branch name does not match.");
     }
 

@@ -12,7 +12,8 @@
     "build": "bun build ./src/index.ts --outfile bundle.js --target bun --minify --no-source-maps"
   },
   "dependencies": {
-    "@gitbeaker/rest": "^40.6.0",
+    "@gitbeaker/rest": "^43.8.0",
+    "@mswjs/interceptors": "0.45.8",
     "@octokit/rest": "^22.0.1",
     "@types/lodash": "^4.17.26",
     "convict": "^6.2.5",
@@ -23,25 +24,33 @@
     "lodash": "^4.18.1",
     "moment": "^2.31.0",
     "object-path": "^0.11.8",
-    "slug": "^9.1.0",
-    "typescript": "^5.9.3",
+    "slug": "^12.0.1",
+    "typescript": "^6",
     "yaml": "^2.9.1",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "^1.4.3",
     "@types/convict": "^6.1.6",
     "@types/html-escaper": "^3.0.4",
     "@types/node-rsa": "^1.1.4",
     "@types/object-path": "^0.11.4",
     "@types/slug": "^5.0.9",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
     "axios": "^1.20.0",
     "bun-types": "^1.4.3",
-    "eslint": "^9.39.5",
+    "eslint": "^10.12.0",
     "husky": "^9.1.7",
-    "msw": "^2.15.0",
+    "msw": "^3.0.3",
     "prettier": "^3.9.10"
   },
-  "module": "src/index.js"
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "peerDependencies": {
+    "typescript": "^7"
+  }
 }

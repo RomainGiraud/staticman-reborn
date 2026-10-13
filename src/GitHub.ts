@@ -1,8 +1,8 @@
 import { Octokit } from "@octokit/rest";
 import { GitError } from "./BaseError";
-import { Parameters } from "./SiteConfig";
+import { type Parameters } from "./SiteConfig";
 import { Config } from "./Config";
-import { BaseGitService, RemoteFile } from "./BaseGitService";
+import { BaseGitService, type RemoteFile } from "./BaseGitService";
 
 export class GitHub extends BaseGitService {
   private api: Octokit;

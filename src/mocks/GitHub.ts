@@ -1,13 +1,14 @@
-import { http, HttpResponse, PathParams } from "msw";
+import { http, HttpResponse, type PathParams } from "msw";
 import { type Static } from "elysia";
 import YAML from "yaml";
 import {
   BodyRequest,
-  Parameters,
+  type Parameters,
   Service,
   SiteConfigSchema,
 } from "../SiteConfig";
 import * as transfomers from "../Transformers";
+import { parseFrontmatter } from "../Utils";
 
 export const requestParameters: Parameters = {
   service: Service.GitHub,
@@ -79,7 +80,12 @@ export const handlers = [
     async ({ request, params }) => {
       const { owner, repo } = params as { owner: string; repo: string };
       const url = new URL(request.url);
-      const filePath = decodeURIComponent(url.pathname.split("/contents/")[1]);
+
+      const element = url.pathname.split("/contents/")[1];
+      if (element === undefined) {
+        return new HttpResponse("Not found", { status: 404 });
+      }
+      const filePath = decodeURIComponent(element);
       const ref = url.searchParams.get("ref");
 
       if (
@@ -161,13 +167,18 @@ export const handlers = [
     async ({ request, params }) => {
       const { owner, repo } = params as { owner: string; repo: string };
       const url = new URL(request.url);
-      const filePath = decodeURIComponent(url.pathname.split("/contents/")[1]);
+
+      const element = url.pathname.split("/contents/")[1];
+      if (element === undefined) {
+        return new HttpResponse("Not found", { status: 404 });
+      }
+      const filePath = decodeURIComponent(element);
       const p = await request.json();
 
       const contentDecoded = Buffer.from(p.content, "base64").toString("utf8");
       const fileExtension = filePath.split(".").pop();
 
-      let content: Record<string, string> = {};
+      let content: Record<string, string | number> = {};
       content["message"] = "";
       switch (fileExtension) {
         case "yaml":
@@ -176,27 +187,9 @@ export const handlers = [
         case "json":
           content = JSON.parse(contentDecoded);
           break;
-        case "md": {
-          const lines = contentDecoded.split("\n");
-
-          if (!/^---$/.test(lines[0])) break;
-
-          let index = 1;
-          while (!/^---$/.test(lines[index])) {
-            const line = lines[index].split(": ");
-            content[line[0]] = line[1];
-            index += 1;
-          }
-          index += 1;
-
-          while (index < lines.length) {
-            content["message"] += lines[index];
-            index += 1;
-          }
-          content["message"] = content["message"].trim();
-
+        case "md":
+          content = parseFrontmatter(contentDecoded);
           break;
-        }
       }
 
       const regex = new RegExp(
@@ -207,7 +200,10 @@ export const handlers = [
         !regex.test(filePath) ||
         p?.message != "New comment in my-post" ||
         content?.name != bodyRequest.fields.name ||
-        transfomers.decrypt(content?.email) != bodyRequest.fields.email ||
+        content === undefined ||
+        content.email === undefined ||
+        typeof content.email !== "string" ||
+        transfomers.decrypt(content.email) != bodyRequest.fields.email ||
         content?.message != bodyRequest.fields.message ||
         content?.parent != bodyRequest.options.parent
       ) {

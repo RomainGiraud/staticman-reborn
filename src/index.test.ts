@@ -6,24 +6,17 @@ import {
   afterEach,
   afterAll,
 } from "bun:test";
-import { setupServer } from "msw/node";
 import { type Static } from "elysia";
 import { app } from "./index";
 import { BodyRequest } from "./SiteConfig";
+import { setupServer } from "./mocks/Bun";
 import * as gitlabMocks from "./mocks/GitLab";
 import * as githubMocks from "./mocks/GitHub";
 
 const server = setupServer(...gitlabMocks.handlers, ...githubMocks.handlers);
-
-beforeAll(() =>
-  server.listen({
-    onUnhandledRequest: "error",
-  }),
-);
-
+beforeAll(() => server.enable());
 afterEach(() => server.resetHandlers());
-
-afterAll(() => server.close());
+afterAll(() => server.disable());
 
 function appendGroup(
   formData: FormData,
@@ -90,6 +83,6 @@ describe("Invalid requests", () => {
     );
 
     const json = (await response.json()) as { error?: string };
-    expect(typeof json.error).toBe("string");
+    expect(typeof json.error).toBe("object");
   });
 });

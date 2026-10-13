@@ -1,8 +1,8 @@
 import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
 import { GitHub } from "./GitHub";
-import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
-import { Parameters, Service } from "./SiteConfig";
+import { type Parameters, Service } from "./SiteConfig";
+import { setupServer } from "./mocks/Bun";
 
 const handlers = [
   http.get(
@@ -25,20 +25,9 @@ const handlers = [
 ];
 
 const server = setupServer(...handlers);
-
-// Establish API mocking before all tests.
-beforeAll(() =>
-  server.listen({
-    onUnhandledRequest: "error",
-  }),
-);
-
-// Reset any request handlers that we may add during the tests,
-// so they don't affect other tests.
+beforeAll(() => server.enable());
 afterEach(() => server.resetHandlers());
-
-// Clean up after the tests are finished.
-afterAll(() => server.close());
+afterAll(() => server.disable());
 
 test("Read a file", async () => {
   const params: Parameters = {

@@ -1,7 +1,7 @@
 import { Gitlab as GitlabRest } from "@gitbeaker/rest";
-import { Parameters } from "./SiteConfig";
+import { type Parameters } from "./SiteConfig";
 import { Config } from "./Config";
-import { BaseGitService, RemoteFile } from "./BaseGitService";
+import { BaseGitService, type RemoteFile } from "./BaseGitService";
 
 export class GitLab extends BaseGitService {
   private api: InstanceType<typeof GitlabRest>;
