@@ -53,7 +53,7 @@ describe.each([
         `http://localhost/entry/v1/${service}/${username}/${project}/${branch}/${property}`,
         {
           method: "POST",
-          body: buildFormData(mock.bodyRequest),
+          body: buildFormData(mock.submittedForm),
         },
       ),
     );
@@ -62,7 +62,7 @@ describe.each([
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
-      String(mock.bodyRequest.options.redirect),
+      String(mock.submittedForm.options.redirect),
     );
   });
 });

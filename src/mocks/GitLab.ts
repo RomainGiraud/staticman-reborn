@@ -1,14 +1,14 @@
 import { http, HttpResponse, type PathParams } from "msw";
-import { type Static } from "elysia";
 import YAML from "yaml";
+import { type Parameters, Service } from "../SiteConfig";
 import {
-  BodyRequest,
-  type Parameters,
-  Service,
-  SiteConfigSchema,
-} from "../SiteConfig";
-import * as transfomers from "../Transformers";
-import { parseFrontmatter } from "../Utils";
+  submittedForm,
+  createConfigRegistry,
+  createDefaultConfig,
+  isExpectedComment,
+} from "./common";
+
+export { submittedForm, createDefaultConfig };
 
 export const requestParameters: Parameters = {
   service: Service.GitLab,
@@ -16,19 +16,6 @@ export const requestParameters: Parameters = {
   project: "test",
   branch: "main",
   property: "comments",
-};
-
-export const bodyRequest: Static<typeof BodyRequest> = {
-  fields: {
-    name: "Romain",
-    email: "romain@example.org",
-    message: "Hello, everything works fine!",
-  },
-  options: {
-    redirect: "http://google.com/",
-    parent: "123",
-    slug: "my-post",
-  },
 };
 
 interface MergeRequestBody {
@@ -56,24 +43,10 @@ const getSHA256Hash = async (input: string) => {
   return hash;
 };
 
-const configFiles: Record<string, Static<typeof SiteConfigSchema>> = {};
+const { configFiles, registerConfigFile, unregisterConfigFile } =
+  createConfigRegistry();
 
-export function registerConfigFile(
-  name: string,
-  conf: Static<typeof SiteConfigSchema>,
-) {
-  if (name in configFiles) {
-    throw new Error(`Config file ${name} already exists`);
-  }
-  configFiles[name] = conf;
-}
-
-export function unregisterConfigFile(name: string) {
-  if (!(name in configFiles)) {
-    throw new Error(`Config file ${name} does not exist`);
-  }
-  delete configFiles[name];
-}
+export { registerConfigFile, unregisterConfigFile };
 
 export const handlers = [
   http.get(
@@ -201,37 +174,9 @@ export const handlers = [
       const { id, file_path } = params;
       const p = await request.json();
 
-      const contentDecoded = Buffer.from(p.content, "base64").toString("utf8");
-      const fileExtension = String(file_path).split(".").pop();
-
-      let content: Record<string, string | number> = {};
-      content["message"] = "";
-      switch (fileExtension) {
-        case "yaml":
-          content = YAML.parse(contentDecoded);
-          break;
-        case "json":
-          content = JSON.parse(contentDecoded);
-          break;
-        case "md":
-          content = parseFrontmatter(contentDecoded);
-          break;
-      }
-
-      const regex = new RegExp(
-        String.raw`^comments\/my-post\/comment-\d+\.${fileExtension}$`,
-      );
       if (
-        !regex.test(String(file_path)) ||
+        !isExpectedComment(String(file_path), p.content, p?.commit_message) ||
         p?.encoding != "base64" ||
-        p?.commit_message != "New comment in my-post" ||
-        content?.name != bodyRequest.fields.name ||
-        content === undefined ||
-        content.email === undefined ||
-        typeof content.email !== "string" ||
-        transfomers.decrypt(content.email) != bodyRequest.fields.email ||
-        content?.message != bodyRequest.fields.message ||
-        content?.parent != bodyRequest.options.parent ||
         id != `${requestParameters.username}/${requestParameters.project}`
       ) {
         return new HttpResponse("Not found", {
@@ -387,30 +332,3 @@ export const handlers = [
     },
   ),
 ];
-
-export function createDefaultConfig(): Static<typeof SiteConfigSchema> {
-  return {
-    comments: {
-      allowedFields: ["name", "email", "message"],
-      requiredFields: ["name", "email", "message"],
-      branch: "main",
-      path: "comments/{options.slug}",
-      commitMessage: "New comment in {options.slug}",
-      filename: "comment-{@timestamp}",
-      format: "yaml",
-      generatedFields: {
-        date: {
-          type: "date",
-          format: "iso8601",
-        },
-      },
-      moderation: true,
-      name: "mysite.org",
-      transforms: {
-        name: ["rmCR", "escapeHTML"],
-        email: "encrypt",
-        message: ["rmCR", "escapeHTML"],
-      },
-    },
-  };
-}

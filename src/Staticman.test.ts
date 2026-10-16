@@ -40,7 +40,7 @@ describe.each([
 
     const sm = new Staticman({ remoteConfigFile: filename });
     expect(
-      sm.process(mock.requestParameters, mock.bodyRequest),
+      sm.process(mock.requestParameters, mock.submittedForm),
     ).resolves.toBeTrue();
 
     mock.unregisterConfigFile(filename);
