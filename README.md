@@ -11,7 +11,7 @@ You must specify the following URL in your form: `http://myinstance.org/entry/:v
 With the following placeholders:
 
 - version: v1
-- service: gitlab (only one for now)
+- service: `gitlab` or `github`
 - username: your username for the wanted project
 - project: the project name
 - branch: the target branch
@@ -35,7 +35,13 @@ echo "$field" | base64 -d - | openssl pkeyutl -decrypt -inkey priv.pem -pkeyopt 
 
 ## Test
 
-A full functional test exists (with mocks):
+Tests need a local `config.test.json` with a throwaway RSA key (not a real secret, just needs to be a valid key). Generate one once:
+
+```bash
+bun run scripts/generate-test-config.ts
+```
+
+Then run the full functional test suite (with mocks):
 
 ```bash
 bun test
@@ -48,5 +54,16 @@ To start the development server run:
 ```bash
 bun run dev
 ```
+
+## Docker
+
+1. Copy `config.sample.json` to `config.production.json` and fill in your GitLab/GitHub token(s) and RSA private key (see above for generating one).
+2. Run:
+
+   ```bash
+   docker compose up -d
+   ```
+
+This pulls the prebuilt image from `ghcr.io/romaingiraud/staticman-reborn`. The service listens on port 3000.
 
 ## Differences

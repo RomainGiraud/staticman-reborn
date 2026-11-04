@@ -1,18 +1,22 @@
-import { t } from "elysia";
+import { type Static, t } from "elysia";
 import { Value } from "@sinclair/typebox/value";
 
+export enum Service {
+  GitHub = "github",
+  GitLab = "gitlab",
+}
+
 export const ParametersRequest = t.Object({
-  service: t.String(),
+  service: t.Enum(Service),
   username: t.String(),
   project: t.String(),
   branch: t.String(),
   property: t.String(),
 });
 
-export const BodyElement = t.Record(
-  t.String(),
-  t.Union([t.String(), t.Number()]),
-);
+export type Parameters = Static<typeof ParametersRequest>;
+
+export const BodyElement = t.Any();
 
 export const BodyRequest = t.Object({
   fields: BodyElement,

@@ -1,8 +1,8 @@
 import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
-import { GitLab } from "./GitLab";
-import { Parameters } from "./Utils";
-import { setupServer } from "msw/node";
 import { http, HttpResponse } from "msw";
+import { GitLab } from "./GitLab";
+import { setupServer } from "./mocks/Bun";
+import { type Parameters, Service } from "./SiteConfig";
 
 const handlers = [
   http.get(
@@ -24,30 +24,19 @@ const handlers = [
 ];
 
 const server = setupServer(...handlers);
-
-// Establish API mocking before all tests.
-beforeAll(() =>
-  server.listen({
-    onUnhandledRequest: "error",
-  }),
-);
-
-// Reset any request handlers that we may add during the tests,
-// so they don't affect other tests.
+beforeAll(() => server.enable());
 afterEach(() => server.resetHandlers());
-
-// Clean up after the tests are finished.
-afterAll(() => server.close());
+afterAll(() => server.disable());
 
 test("Read a file", async () => {
   const params: Parameters = {
-    service: "gitlab",
+    service: Service.GitLab,
     username: "myusername",
     project: "myproject",
     branch: "mybranch",
     property: "myproperty",
   };
-  const gl = new GitLab("personaltoken", params);
+  const gl = new GitLab(params);
   expect(gl.readFile("src/config.json")).resolves.toEqual({
     name: "Python",
     year_launched: 1991,

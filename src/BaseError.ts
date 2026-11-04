@@ -8,7 +8,7 @@ export default class BaseError extends Error {
     Error.captureStackTrace(this);
   }
 
-  toString() {
+  override toString() {
     return `${this.name}: ${JSON.stringify(this.message)}`;
   }
 }

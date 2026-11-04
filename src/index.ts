@@ -1,35 +1,65 @@
 import { Elysia } from "elysia";
 import Staticman from "./Staticman";
-import { formDataToJson } from "./Utils";
+import { expandSubmittedData } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
+import { logger } from "./Logger";
+import { Config } from "./Config";
 
-const app = new Elysia()
-  .onError(({ error }) => {
-    return { error: error.toString() };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export const app = new Elysia()
+  .onError(({ error, request }) => {
+    logger.debug(`Invalid request "${request.url}": ${error.toString()}`);
+    return { error };
   })
-  .onParse(async ({ request, contentType }) => {
-    if (contentType === "multipart/form-data") {
-      return formDataToJson(await request.formData());
+  .onTransform(({ body }) => {
+    if (!isRecord(body)) {
+      return;
     }
+
+    const newBody = expandSubmittedData(body);
+    for (const key in body) {
+      delete body[key];
+    }
+    for (const key in newBody) {
+      body[key] = newBody[key];
+    }
+    if (!body["fields"]) body["fields"] = {};
+    if (!body["options"]) body["options"] = {};
+    return;
+  })
+  .get("/health", () => {
+    return { status: "ok" };
   })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",
-    async ({ params, body, set }) => {
+    async ({ params, body, redirect, request }) => {
+      logger.debug(`request: ${request.url}`);
+      logger.debug(`params: ${JSON.stringify(params)}`);
+      logger.debug(`body: ${JSON.stringify(body)}`);
+
       const sm = new Staticman();
       await sm.process(params, body);
 
       const options = body["options"];
       if ("redirect" in options) {
-        set.redirect = String(options["redirect"]);
+        return redirect(String(options["redirect"]));
       }
     },
     {
       body: BodyRequest,
       params: ParametersRequest,
     },
-  )
-  .listen(3000);
+  );
 
-console.log(
-  `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-);
+/* v8 ignore start */
+if (import.meta.main) {
+  app.listen(Config.get("port"));
+
+  console.log(
+    `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+  );
+}
+/* v8 ignore end */

@@ -1,11 +1,12 @@
 import { GitLab } from "./GitLab";
-import { Parameters, createDate } from "./Utils";
+import { GitHub } from "./GitHub";
+import { type GitService } from "./GitService";
+import { createDate } from "./Utils";
 import objectPath from "object-path";
 import moment from "moment";
 import YAML from "yaml";
 import { type Static } from "elysia";
 
-import { Config } from "./Config";
 import * as transformers from "./Transformers";
 import {
   ParseRemoteConfig,
@@ -13,10 +14,11 @@ import {
   BodyRequest,
   BodyElement,
   SiteTransforms,
+  type Parameters,
 } from "./SiteConfig";
+import { logger } from "./Logger";
 
 export interface StaticmanOptions {
-  gitlabToken?: string;
   remoteConfigFile?: string;
   siteConfig?: Static<typeof SitePropertySchema>;
 }
@@ -26,14 +28,25 @@ export default class Staticman {
   private bodyRequest = {};
   private siteConfig?: Static<typeof SitePropertySchema>;
 
-  private gitlabToken: string | null;
   private remoteConfigFile: string;
 
   constructor(options?: Partial<StaticmanOptions>) {
     this.uuid = crypto.randomUUID();
-    this.gitlabToken = options?.gitlabToken || Config.get("gitlabToken");
     this.remoteConfigFile = options?.remoteConfigFile || "staticman.yaml";
     this.siteConfig = options?.siteConfig;
+  }
+
+  private createGitService(params: Parameters): GitService {
+    const factories = {
+      gitlab: (p: Parameters) => new GitLab(p),
+      github: (p: Parameters) => new GitHub(p),
+    };
+
+    if (!factories[params.service]) {
+      throw new Error(`Unsupported service: ${params.service}`);
+    }
+
+    return factories[params.service](params);
   }
 
   private validateFields(
@@ -48,6 +61,8 @@ export default class Staticman {
     Object.keys(fields).forEach((field: keyof Static<typeof BodyElement>) => {
       const value = fields[field];
       if (!allowed.includes(field as string)) return;
+
+      if (value === undefined) return;
 
       newFields[field] = value;
     });
@@ -74,6 +89,7 @@ export default class Staticman {
 
     Object.keys(generatedFields).forEach((field) => {
       const generatedField = generatedFields[field];
+      if (generatedField === undefined) return;
 
       switch (generatedField.type) {
         case "date":
@@ -116,9 +132,13 @@ export default class Staticman {
     const newFields: Static<typeof BodyElement> = {};
     Object.keys(fields).forEach((field) => {
       let value = fields[field];
+      if (value === undefined) {
+        return;
+      }
 
       if (field in transforms) {
-        const fieldTransforms = transforms[field];
+        let fieldTransforms = transforms[field];
+        if (fieldTransforms === undefined) fieldTransforms = [];
         Array<string>()
           .concat(fieldTransforms)
           .forEach((transform) => {
@@ -162,12 +182,10 @@ export default class Staticman {
         {
           extension = "md";
 
-          if (
-            !(
-              typeof this.siteConfig.format === "object" &&
-              "content" in this.siteConfig.format
-            )
-          ) {
+          if (!(
+            typeof this.siteConfig.format === "object" &&
+            "content" in this.siteConfig.format
+          )) {
             throw new Error("NO_FRONTMATTER_CONTENT");
           }
 
@@ -200,28 +218,27 @@ export default class Staticman {
   ): Promise<boolean> {
     this.bodyRequest = bodyRequest;
 
-    if (this.gitlabToken === null) {
-      return false;
-    }
+    const git = this.createGitService(params);
 
-    const gl = new GitLab(this.gitlabToken, params);
-    const remoteConfigObject = await gl.readFile(this.remoteConfigFile);
+    const remoteConfigObject = await git.readFile(this.remoteConfigFile);
 
     let remoteConfig;
     try {
       remoteConfig = ParseRemoteConfig(remoteConfigObject);
     } catch (error) {
-      throw new Error(`Remote config file is invalid: ${error}`);
+      throw new Error(`Remote config file is invalid: ${error}`, {
+        cause: error,
+      });
     }
 
     const prop = params.property;
     if (!(prop in remoteConfig)) {
-      throw new Error("Server is under maintainance");
+      throw new Error("Main property not found in remote config file.");
     }
 
     this.siteConfig = remoteConfig[prop];
-    if (this.siteConfig.branch !== params.branch) {
-      throw new Error("branch name does not match.");
+    if (this.siteConfig?.branch !== params.branch) {
+      throw new Error("Branch name does not match.");
     }
 
     let fields = bodyRequest.fields;
@@ -236,6 +253,7 @@ export default class Staticman {
       }
     }
     const [filepath, content] = this.generateFile(fields);
+    logger.debug(`filepath: ${filepath}`);
 
     const commitMessage = this.resolvePlaceholder(
       this.siteConfig.commitMessage,
@@ -243,14 +261,14 @@ export default class Staticman {
     );
 
     if (this.siteConfig.moderation) {
-      await gl.writeFileAndSendReview(
+      await git.writeFileAndSendReview(
         filepath,
         content,
         commitMessage,
         `staticman_${this.uuid}`,
       );
     } else {
-      await gl.writeFile(filepath, content, commitMessage);
+      await git.writeFile(filepath, content, commitMessage);
     }
 
     return true;
