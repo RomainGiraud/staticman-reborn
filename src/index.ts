@@ -4,6 +4,7 @@ import { expandSubmittedData } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
 import { logger } from "./Logger";
 import { Config } from "./Config";
+import { VERSION } from "./Version";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,7 +32,7 @@ export const app = new Elysia()
     return;
   })
   .get("/health", () => {
-    return { status: "ok" };
+    return { status: "ok", version: VERSION };
   })
   .post(
     "/entry/v1/:service/:username/:project/:branch/:property",

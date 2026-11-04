@@ -9,7 +9,7 @@
     "fmt": "prettier --check --cache './**/*.{mjs,ts,tsx,js,jsx}'",
     "fmt:fix": "bun fmt --write",
     "prepare": "bun run scripts/prepare.js",
-    "build": "bun build ./src/index.ts --outfile bundle.js --target bun --minify --no-source-maps"
+    "build": "bun run scripts/build.ts"
   },
   "dependencies": {
     "@gitbeaker/rest": "^43.8.0",
