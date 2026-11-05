@@ -103,6 +103,12 @@ export const schema = {
     env: "RSA_PRIVATE_KEY",
   },
   logging: {
+    level: {
+      doc: "Minimum level of messages to log.",
+      format: ["error", "warn", "info", "http", "verbose", "debug", "silly"],
+      default: "debug",
+      env: "LOG_LEVEL",
+    },
     slackWebhook: {
       doc: "Slack webhook URL to pipe log output to",
       format: String,
@@ -119,7 +125,7 @@ const filename = `config.${Config.get("env")}.json`;
 Config.loadFile(filename);
 Config.validate();
 
-configureLogger(Config.get("env"));
+configureLogger(Config.get("env"), Config.get("logging.level"));
 logger.info(`(*) Local config file loaded: ${filename}`);
 
 export const PrivateKey = crypto.createPrivateKey(

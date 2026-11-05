@@ -7,6 +7,7 @@ const consoleTransports = () =>
   logger.transports.filter((t) => t instanceof transports.Console);
 
 afterEach(() => {
+  logger.level = "debug";
   consoleTransports().forEach((t) => logger.remove(t));
 });
 
@@ -70,5 +71,15 @@ describe("configureLogger", () => {
     configureLogger("development");
     expect(consoleTransports()).toHaveLength(1);
     expect(logger.transports).toHaveLength(before + 1);
+  });
+
+  test("sets the log level when provided", () => {
+    configureLogger("production", "warn");
+    expect(logger.level).toBe("warn");
+  });
+
+  test("keeps the current level when none is provided", () => {
+    configureLogger("production");
+    expect(logger.level).toBe("debug");
   });
 });

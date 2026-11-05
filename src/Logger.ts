@@ -19,7 +19,10 @@ export const logger = createLogger({
   ],
 });
 
-export const configureLogger = (env: string) => {
+export const configureLogger = (env: string, level?: string) => {
+  if (level) {
+    logger.level = level;
+  }
   if (env === "development") {
     logger.add(
       new transports.Console({
