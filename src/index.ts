@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, status } from "elysia";
 import Staticman from "./Staticman";
 import { expandSubmittedData } from "./Utils";
 import { BodyRequest, ParametersRequest } from "./SiteConfig";
@@ -41,12 +41,17 @@ export const app = new Elysia()
       logger.debug(`params: ${JSON.stringify(params)}`);
       logger.debug(`body: ${JSON.stringify(body)}`);
 
-      const sm = new Staticman();
-      await sm.process(params, body);
+      try {
+        const sm = new Staticman();
+        await sm.process(params, body);
 
-      const options = body["options"];
-      if ("redirect" in options) {
-        return redirect(String(options["redirect"]));
+        const options = body["options"];
+        if ("redirect" in options) {
+          return redirect(String(options["redirect"]));
+        }
+      } catch (error) {
+        logger.error(`Error processing request: ${error}`);
+        throw status(500, "Internal server error");
       }
     },
     {
@@ -58,8 +63,7 @@ export const app = new Elysia()
 /* v8 ignore start */
 if (import.meta.main) {
   app.listen(Config.get("port"));
-
-  console.log(
+  logger.info(
     `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
   );
 }
