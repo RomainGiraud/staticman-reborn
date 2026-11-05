@@ -1,12 +1,18 @@
 services:
   staticman:
-    # build: .
-    # image: staticman-reborn:latest
     image: ghcr.io/romaingiraud/staticman-reborn:latest
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       NODE_ENV: production
     volumes:
-      - ./config.production.json:/app/config.production.json:ro
+      -
+        type: bind
+        source: ./config.production.json
+        target: /app/config.production.json
     restart: unless-stopped
+    healthcheck:
+      test: wget -q --spider http://127.0.0.1:3000/health || exit 1
+      interval: 2s
+      timeout: 10s
+      retries: 15
