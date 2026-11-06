@@ -10,6 +10,7 @@ services:
         type: bind
         source: ./config.production.json
         target: /app/config.production.json
+        read_only: true
     restart: unless-stopped
     healthcheck:
       test: wget -q --spider http://127.0.0.1:3000/health || exit 1

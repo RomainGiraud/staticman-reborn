@@ -14,8 +14,8 @@ export const logger = createLogger({
     myFormat,
   ),
   transports: [
-    new transports.File({ filename: "error.log", level: "error" }), // all logs `error` (and below)
-    new transports.File({ filename: "combined.log" }), // all logs `info` and below
+    new transports.File({ filename: "logs/error.log", level: "error" }), // all logs `error` (and below)
+    new transports.File({ filename: "logs/all.log" }), // all logs `info` and below
   ],
 });
 

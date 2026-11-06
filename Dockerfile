@@ -36,6 +36,10 @@ COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prerelease /app/bundle.js .
 COPY --from=prerelease /app/package.json .
 
+# the app writes its logs in /app/logs; only this directory is writable by bun,
+# copied files stay root-owned (read-only for bun)
+RUN mkdir /app/logs && chown bun:bun /app/logs
+
 # run the app
 USER bun
 EXPOSE 3000/tcp

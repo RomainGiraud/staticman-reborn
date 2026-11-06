@@ -20,9 +20,10 @@ describe("logger", () => {
         t instanceof transports.File,
     );
     expect(files).toHaveLength(2);
+    files.forEach((t) => expect(t.dirname).toBe("logs"));
 
     const errorFile = files.find((t) => t.filename === "error.log");
-    const combinedFile = files.find((t) => t.filename === "combined.log");
+    const combinedFile = files.find((t) => t.filename === "all.log");
     expect(errorFile?.level).toBe("error");
     expect(combinedFile).toBeDefined();
     expect(combinedFile?.level).toBeUndefined();
