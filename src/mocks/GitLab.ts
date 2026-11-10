@@ -1,6 +1,6 @@
 import { http, HttpResponse, type PathParams } from "msw";
 import YAML from "yaml";
-import { type Parameters, Service } from "../SiteConfig";
+import { type Parameters } from "../SiteConfig";
 import {
   submittedForm,
   createConfigRegistry,
@@ -11,7 +11,7 @@ import {
 export { submittedForm, createDefaultConfig };
 
 export const requestParameters: Parameters = {
-  service: Service.GitLab,
+  service: "mygitlab",
   username: "user",
   project: "test",
   branch: "main",

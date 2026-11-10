@@ -1,11 +1,6 @@
 import { type Static, t } from "elysia";
 import { Value } from "@sinclair/typebox/value";
 
-export enum Service {
-  GitHub = "github",
-  GitLab = "gitlab",
-}
-
 export const ParametersRequest = t.Object({
   service: t.String(),
   username: t.String(),
