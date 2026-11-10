@@ -1,23 +1,18 @@
 import { Gitlab as GitlabRest } from "@gitbeaker/rest";
 import { type Parameters } from "./SiteConfig";
-import { Config } from "./Config";
+import { type ServiceConfig } from "./Config";
 import { BaseGitService, type RemoteFile } from "./BaseGitService";
 
 export class GitLab extends BaseGitService {
   private api: InstanceType<typeof GitlabRest>;
   private repositoryId: string;
 
-  constructor(parameters: Parameters) {
+  constructor(parameters: Parameters, service: ServiceConfig) {
     super(parameters, "GITLAB");
 
-    const token = Config.get("gitlabToken");
-    if (!token) {
-      throw new Error("GitLab token is not set");
-    }
-
     this.api = new GitlabRest({
-      host: "https://gitlab.com",
-      token,
+      host: service.url,
+      token: service.token,
     });
 
     this.repositoryId = `${parameters.username}/${parameters.project}`;

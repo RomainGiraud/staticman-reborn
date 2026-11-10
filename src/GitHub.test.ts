@@ -1,6 +1,7 @@
 import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
 import { GitHub } from "./GitHub";
 import { http, HttpResponse } from "msw";
+import { Config } from "./Config";
 import { type Parameters, Service } from "./SiteConfig";
 import { setupServer } from "./mocks/Bun";
 
@@ -37,7 +38,10 @@ test("Read a file", async () => {
     branch: "mybranch",
     property: "myproperty",
   };
-  const gh = new GitHub(params);
+  const gh = new GitHub(
+    params,
+    Config.get("services").find((s) => s.name === "github")!,
+  );
   expect(gh.readFile("src/config.json")).resolves.toEqual({
     name: "Python",
     year_launched: 1991,

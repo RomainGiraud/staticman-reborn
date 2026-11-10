@@ -2,6 +2,7 @@ import { expect, test, beforeAll, afterEach, afterAll } from "bun:test";
 import { http, HttpResponse } from "msw";
 import { GitLab } from "./GitLab";
 import { setupServer } from "./mocks/Bun";
+import { Config } from "./Config";
 import { type Parameters, Service } from "./SiteConfig";
 
 const handlers = [
@@ -36,7 +37,10 @@ test("Read a file", async () => {
     branch: "mybranch",
     property: "myproperty",
   };
-  const gl = new GitLab(params);
+  const gl = new GitLab(
+    params,
+    Config.get("services").find((s) => s.name === "gitlab")!,
+  );
   expect(gl.readFile("src/config.json")).resolves.toEqual({
     name: "Python",
     year_launched: 1991,

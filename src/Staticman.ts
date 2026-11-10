@@ -17,6 +17,7 @@ import {
   type Parameters,
 } from "./SiteConfig";
 import { logger } from "./Logger";
+import { Config } from "./Config";
 
 export interface StaticmanOptions {
   remoteConfigFile?: string;
@@ -37,16 +38,23 @@ export default class Staticman {
   }
 
   private createGitService(params: Parameters): GitService {
-    const factories = {
-      gitlab: (p: Parameters) => new GitLab(p),
-      github: (p: Parameters) => new GitHub(p),
-    };
-
-    if (!factories[params.service]) {
-      throw new Error(`Unsupported service: ${params.service}`);
+    const service = Config.get("services").find(
+      (s) => s.name === params.service,
+    );
+    if (!service) {
+      throw new Error(
+        `Service ${params.service} name is unknown in configuration file.`,
+      );
     }
 
-    return factories[params.service](params);
+    switch (service.type) {
+      case "gitlab":
+        return new GitLab(params, service);
+      case "github":
+        return new GitHub(params, service);
+      default:
+        throw new Error(`Unsupported service type: ${service.type}`);
+    }
   }
 
   private validateFields(
