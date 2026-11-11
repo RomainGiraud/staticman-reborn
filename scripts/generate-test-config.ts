@@ -18,8 +18,22 @@ writeFileSync(
   path,
   JSON.stringify(
     {
-      gitlabToken: "test-token",
-      githubToken: "test-token",
+      services: [
+        {
+          name: "mygitlab",
+          type: "gitlab",
+          url: "https://gitlab.com",
+          apiUrl: "https://gitlab.com/api/v4",
+          token: "test-token",
+        },
+        {
+          name: "mygithub",
+          type: "github",
+          url: "https://github.com",
+          apiUrl: "https://api.github.com",
+          token: "test-token",
+        },
+      ],
       rsaPrivateKey: privateKey,
     },
     null,

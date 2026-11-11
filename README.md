@@ -58,6 +58,7 @@ bun run dev
 ## Docker
 
 1. Copy `config.sample.json` to `config.production.json` and fill in your GitLab/GitHub token(s) and RSA private key (see above for generating one).
+   Tokens can instead be provided through the `STATICMAN_<NAME>_TOKEN` environment variable, where `<NAME>` is the service `name` uppercased (e.g. `STATICMAN_SERVICE_01_TOKEN`). The variable takes precedence over the `token` field, which can then be omitted.
 2. Run:
 
    ```bash

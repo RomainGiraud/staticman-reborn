@@ -1,7 +1,7 @@
 import { Octokit } from "@octokit/rest";
 import { GitError } from "./BaseError";
 import { type Parameters } from "./SiteConfig";
-import { Config } from "./Config";
+import { type ServiceConfig } from "./Config";
 import { BaseGitService, type RemoteFile } from "./BaseGitService";
 
 export class GitHub extends BaseGitService {
@@ -9,16 +9,12 @@ export class GitHub extends BaseGitService {
   private owner: string;
   private repo: string;
 
-  constructor(parameters: Parameters) {
+  constructor(parameters: Parameters, service: ServiceConfig) {
     super(parameters, "GITHUB");
 
-    const token = Config.get("githubToken");
-    if (!token) {
-      throw new Error("GitHub token is not set");
-    }
-
     this.api = new Octokit({
-      auth: token,
+      auth: service.token,
+      baseUrl: service.apiUrl,
     });
 
     this.owner = parameters.username;
