@@ -1,0 +1,10 @@
+{
+  "fields": {
+    "name": "E2E bot",
+    "email": "e2e@example.com",
+    "message": "Comment sent by the end-to-end tests"
+  },
+  "options": {
+    "parent": 123
+  }
+}

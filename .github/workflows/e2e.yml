@@ -1,8 +1,8 @@
 name: E2E
 
 # Runs the app in Docker, submits a comment form for a moderated property of
-# the tester repository, then checks with the GitHub API that a pull request
-# is waiting for review.
+# a tester project, then checks with the forge API that a pull request (GitHub)
+# or merge request (GitLab) is waiting for review.
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-# The tester repository is shared: never run two end-to-end tests at once.
+# The tester projects are shared: never run two end-to-end tests at once.
 concurrency:
   group: e2e-tester
   cancel-in-progress: false
@@ -19,27 +19,27 @@ permissions:
   contents: read
 
 env:
-  TESTER_OWNER: RomainGiraud
-  TESTER_REPO: staticman-reborn-tester
-  TESTER_BRANCH: main
-  TESTER_PROPERTY: comments-moderation
-  # Unique per run, becomes the title of the pull request
+  # Unique per run, becomes the title of the pull/merge request
   # ("New comment in {options.slug}").
   SLUG: e2e-${{ github.run_id }}-${{ github.run_attempt }}
 
 jobs:
-  e2e:
-    name: Submit a form and find the pull request
+  github:
+    name: GitHub - submit a form and find the pull request
     # Secrets are not available to pull requests coming from forks.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: CI
     env:
+      TESTER_OWNER: RomainGiraud
+      TESTER_REPO: staticman-reborn-tester
+      TESTER_BRANCH: main
+      TESTER_PROPERTY: comments-moderation
       # Access token (repo scope) of the tester repository, stored as a secret.
-      # It is used by the app (through STATICMAN_GITHUB_TOKEN) and by the
+      # It is used by the app (through STATICMAN_MYGITHUB_TOKEN) and by the
       # GitHub API calls below.
-      TESTER_TOKEN: ${{ secrets.TESTER_TOKEN }}
+      TESTER_TOKEN: ${{ secrets.TESTER_TOKEN_GITHUB }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -56,29 +56,23 @@ jobs:
 
       - name: Create the configuration
         run: |
-          openssl genrsa -traditional 2048 > "$RUNNER_TEMP/key.pem"
-          jq -n --rawfile key "$RUNNER_TEMP/key.pem" '{
-            port: 3000,
-            logging: { level: "debug" },
-            rsaPrivateKey: $key,
-            services: [{
-              name: "github",
-              type: "github",
-              url: "https://github.com",
-              apiUrl: "https://api.github.com"
-            }]
-          }' > "$RUNNER_TEMP/config.production.json"
+          # Service definitions live in e2e/config.production.json; the token
+          # comes from the environment. Only this job's service is kept, as the
+          # app refuses to start if a configured service has no token.
+          jq --rawfile key "e2e/key.pem" \
+            '.rsaPrivateKey = $key | .services |= map(select(.name == "mygithub"))' \
+            e2e/config.production.json > "$RUNNER_TEMP/config.production.json"
           # The container runs as an unprivileged user.
           chmod 644 "$RUNNER_TEMP/config.production.json"
 
       - name: Start the app
         run: |
           # The token is not in the configuration file: the app reads it from
-          # STATICMAN_GITHUB_TOKEN (service named "github").
+          # STATICMAN_MYGITHUB_TOKEN (service named "mygithub").
           docker run --detach --name staticman \
             --publish 3000:3000 \
             --env NODE_ENV=production \
-            --env STATICMAN_GITHUB_TOKEN="$TESTER_TOKEN" \
+            --env STATICMAN_MYGITHUB_TOKEN="$TESTER_TOKEN" \
             --volume "$RUNNER_TEMP/config.production.json:/app/config.production.json:ro" \
             staticman-reborn:e2e
 
@@ -94,14 +88,22 @@ jobs:
 
       - name: Submit the form
         run: |
-          url="http://127.0.0.1:3000/entry/v1/github/$TESTER_OWNER/$TESTER_REPO/$TESTER_BRANCH/$TESTER_PROPERTY"
+          url="http://127.0.0.1:3000/entry/v1/mygithub/$TESTER_OWNER/$TESTER_REPO/$TESTER_BRANCH/$TESTER_PROPERTY"
           echo "POST $url"
+          # Turn e2e/form.json into curl arguments: {"fields": {"name": "a"}}
+          # becomes --data-urlencode "fields[name]=a". The slug is unique per
+          # run and becomes the title of the pull/merge request.
+          mapfile -d '' -t pairs < <(jq -j --arg slug "$SLUG" '
+            .options.slug = $slug
+            | to_entries[] | .key as $group
+            | .value | to_entries[]
+            | "\($group)[\(.key)]=\(.value | tostring)\u0000"' e2e/form.json)
+          args=()
+          for pair in "${pairs[@]}"; do
+            args+=(--data-urlencode "$pair")
+          done
           curl --silent --show-error --fail-with-body \
-            --request POST "$url" \
-            --data-urlencode "options[slug]=$SLUG" \
-            --data-urlencode "fields[name]=E2E bot" \
-            --data-urlencode "fields[email]=e2e@example.com" \
-            --data-urlencode "fields[message]=Comment sent by the run $GITHUB_RUN_ID of $GITHUB_REPOSITORY"
+            --request POST "$url" "${args[@]}"
 
       - name: Check a pull request is waiting for review
         run: |
@@ -145,6 +147,132 @@ jobs:
                 --request PATCH --data '{"state":"closed"}' "$api/pulls/$number" || true
               curl --silent --fail --output /dev/null "${auth[@]}" \
                 --request DELETE "$api/git/refs/heads/$branch" || true
+            done
+
+      - name: Stop the app
+        if: always()
+        run: docker rm --force staticman
+
+  gitlab:
+    name: GitLab - submit a form and find the merge request
+    # Secrets are not available to pull requests coming from forks.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: CI
+    env:
+      TESTER_OWNER: RomainGiraud
+      TESTER_REPO: staticman-reborn-tester
+      TESTER_BRANCH: main
+      TESTER_PROPERTY: comments-moderation
+      # Access token (api scope, Developer role or higher) of the tester
+      # project, stored as a secret. It is used by the app (through
+      # STATICMAN_MYGITLAB_TOKEN) and by the GitLab API calls below.
+      TESTER_TOKEN: ${{ secrets.TESTER_TOKEN_GITLAB }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check the access token is available
+        run: |
+          if [ -z "$TESTER_TOKEN" ]; then
+            echo "::error::The GITLAB_TESTER_TOKEN secret is not set."
+            exit 1
+          fi
+
+      - name: Build the Docker image
+        run: docker build --tag staticman-reborn:e2e .
+
+      - name: Create the configuration
+        run: |
+          # Service definitions live in e2e/config.production.json; the token
+          # comes from the environment. Only this job's service is kept, as the
+          # app refuses to start if a configured service has no token.
+          jq --rawfile key "e2e/key.pem" \
+            '.rsaPrivateKey = $key | .services |= map(select(.name == "mygitlab"))' \
+            e2e/config.production.json > "$RUNNER_TEMP/config.production.json"
+          # The container runs as an unprivileged user.
+          chmod 644 "$RUNNER_TEMP/config.production.json"
+
+      - name: Start the app
+        run: |
+          # The token is not in the configuration file: the app reads it from
+          # STATICMAN_MYGITLAB_TOKEN (service named "mygitlab").
+          docker run --detach --name staticman \
+            --publish 3000:3000 \
+            --env NODE_ENV=production \
+            --env STATICMAN_MYGITLAB_TOKEN="$TESTER_TOKEN" \
+            --volume "$RUNNER_TEMP/config.production.json:/app/config.production.json:ro" \
+            staticman-reborn:e2e
+
+          for _ in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:3000/health; then
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::The app did not become healthy."
+          exit 1
+
+      - name: Submit the form
+        run: |
+          url="http://127.0.0.1:3000/entry/v1/mygitlab/$TESTER_OWNER/$TESTER_REPO/$TESTER_BRANCH/$TESTER_PROPERTY"
+          echo "POST $url"
+          # Turn e2e/form.json into curl arguments: {"fields": {"name": "a"}}
+          # becomes --data-urlencode "fields[name]=a". The slug is unique per
+          # run and becomes the title of the pull/merge request.
+          mapfile -d '' -t pairs < <(jq -j --arg slug "$SLUG" '
+            .options.slug = $slug
+            | to_entries[] | .key as $group
+            | .value | to_entries[]
+            | "\($group)[\(.key)]=\(.value | tostring)\u0000"' e2e/form.json)
+          args=()
+          for pair in "${pairs[@]}"; do
+            args+=(--data-urlencode "$pair")
+          done
+          curl --silent --show-error --fail-with-body \
+            --request POST "$url" "${args[@]}"
+
+      - name: Check a merge request is waiting for review
+        run: |
+          title="New comment in $SLUG"
+          api="https://gitlab.com/api/v4/projects/$TESTER_OWNER%2F$TESTER_REPO"
+          for _ in $(seq 1 10); do
+            mr=$(curl --silent --show-error --fail \
+              --header "PRIVATE-TOKEN: $TESTER_TOKEN" \
+              "$api/merge_requests?state=opened&target_branch=$TESTER_BRANCH&per_page=100" |
+              jq --arg title "$title" 'map(select(.title == $title)) | first // empty')
+            if [ -n "$mr" ]; then
+              echo "Found merge request:"
+              echo "$mr" | jq '{iid, title, web_url, source_branch, state}'
+              echo "$mr" | jq -e '.state == "opened" and (.source_branch | startswith("staticman_"))' > /dev/null
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::No open merge request titled '$title' in $TESTER_OWNER/$TESTER_REPO."
+          exit 1
+
+      - name: Show the app logs
+        if: failure()
+        run: docker logs staticman
+
+      - name: Clean up the tester project
+        if: always()
+        run: |
+          title="New comment in $SLUG"
+          api="https://gitlab.com/api/v4/projects/$TESTER_OWNER%2F$TESTER_REPO"
+          auth=(--header "PRIVATE-TOKEN: $TESTER_TOKEN")
+          # Close the merge request(s) of this run and delete their branch.
+          curl --silent --fail "${auth[@]}" "$api/merge_requests?state=opened&per_page=100" |
+            jq -r --arg title "$title" '.[] | select(.title == $title) | "\(.iid) \(.source_branch)"' |
+            while read -r iid branch; do
+              echo "Closing !$iid and deleting $branch"
+              curl --silent --fail --output /dev/null "${auth[@]}" \
+                --request PUT --data 'state_event=close' "$api/merge_requests/$iid" || true
+              curl --silent --fail --output /dev/null "${auth[@]}" \
+                --request DELETE "$api/repository/branches/$branch" || true
             done
 
       - name: Stop the app
