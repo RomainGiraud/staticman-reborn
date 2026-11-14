@@ -49,3 +49,5 @@ config.test.json
 staticman.yaml
 
 .eslintcache
+
+!e2e/
